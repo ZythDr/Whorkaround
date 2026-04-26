@@ -18,9 +18,16 @@ local raceFactionMap = {
 }
 
 -- Helper to escape pattern characters
-local function EscapePattern(text) return text:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1") end
-local addedPattern = EscapePattern(ERR_FRIEND_ADDED_S):gsub("%%%%s", "(.+)")
-local removedPattern = EscapePattern(ERR_FRIEND_REMOVED_S):gsub("%%%%s", "(.+)")
+local function EscapePattern(text) 
+    if not text then return "" end
+    return text:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1") 
+end
+
+-- Patterns for system message suppression (with fallbacks)
+local addedPattern = EscapePattern(ERR_FRIEND_ADDED_S or "%s added to friends."):gsub("%%%%s", "(.+)")
+local removedPattern = EscapePattern(ERR_FRIEND_REMOVED_S or "%s removed from friends list."):gsub("%%%%s", "(.+)")
+local joinPattern = EscapePattern(ERR_CHANNEL_JOIN_S or "You have joined the channel: %s"):gsub("%%%%s", "(.+)")
+local leavePattern = EscapePattern(ERR_CHANNEL_LEAVE_S or "You have left the channel: %s"):gsub("%%%%s", "(.+)")
 
 -- Helper to get player info from guild roster
 local function GetPlayerInfoFromGuild(targetName)
@@ -89,7 +96,8 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
         Whorkaround_DB[name] = { class = class, level = level, zone = area, faction = faction, lastSeen = time(), source = source or (cached and "Cache" or "FriendsList") }
     end
     
-    if not cached and level > 0 and level <= 60 and Whorkaround.Broadcast then 
+    -- BROADCAST logic: Broadcast if it's live data OR if it's a manual source (not just a background passive harvest)
+    if (not cached or source == "FriendsList" or source == "Manual") and level > 0 and level <= 60 and Whorkaround.Broadcast then 
         Whorkaround:Broadcast(name, level, class, area, faction) 
     end
     DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 1.0, 0.0)
@@ -131,10 +139,19 @@ end
 -- System Message Filter
 local function SystemMessageFilter(self, event, msg)
     if not msg then return end
+    
+    -- Suppress Friends List activity
     local nameAdded = msg:match(addedPattern)
     if nameAdded and (pendingQueries[nameAdded] or addedSuppression[nameAdded]) then return true end
     local nameRemoved = msg:match(removedPattern)
     if nameRemoved and removingFriends[nameRemoved] then return true end
+    
+    -- Suppress "You have joined the channel: WhorkComm" spam
+    local chJoined = msg:match(joinPattern)
+    if chJoined and (chJoined:find("WhorkComm") or chJoined:find("1. WhorkComm")) then return true end
+    local chLeft = msg:match(leavePattern)
+    if chLeft and (chLeft:find("WhorkComm") or chLeft:find("1. WhorkComm")) then return true end
+
     if msg == ERR_FRIEND_NOT_FOUND then
         for name, startTime in pairs(pendingQueries) do if type(startTime) == "number" and GetTime() - startTime < 1 then return true end end
     end
@@ -255,7 +272,7 @@ local function HookChat()
 end
 HookChat()
 
-SLASH_WHORK1 = "/whork"; SLASH_WHORK2 = "/whorkaround"; SLASH_WHORK3 = "/whom"; SLASH_WHORK4 = "/who"; SLASH_WSTATS1 = "/whostats"; SLASH_WTOGGLE1 = "/whotoggle"; SLASH_WCLEAR1 = "/whocleardb"
+SLASH_WHORK1 = "/whork"; SLASH_WHORK2 = "/whorkaround"; SLASH_WHORK3 = "/whom"; SLASH_WHORK4 = "/who"; SLASH_WSTATS1 = "/whostats"; SLASH_WTOGGLE1 = "/whotoggle"; SLASH_WCLEAR1 = "/whocleardb"; SLASH_WDEBUG1 = "/whodebug"
 
 SlashCmdList["WHORK"] = function(msg) Whorkaround:Query(msg) end
 SlashCmdList["WHO"] = function(msg)
@@ -274,5 +291,9 @@ SlashCmdList["WCLEAR"] = function()
     Whorkaround_DB = {}
     DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Player database has been cleared.")
 end
+SlashCmdList["WDEBUG"] = function()
+    if Whorkaround.CheckComm then Whorkaround:CheckComm() 
+    else DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Comm module not loaded!") end
+end
 
-print("|cff1abc9cWhorkaround|r loaded. /whostats & /whotoggle active.")
+print("|cff1abc9cWhorkaround|r loaded. Use /whodebug to check network.")
