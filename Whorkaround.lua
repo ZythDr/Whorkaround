@@ -89,17 +89,26 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
     local enemyFaction = (playerFaction == "Alliance") and "Horde" or "Alliance"
     local prefix = "|cff1abc9cWhorkaround:|r "
     
+    -- Try to harvest class from secondary sources if it's missing (even for level 0)
+    if not class or class == "Unknown" then
+        if Whorkaround.GetElvUIClass then class = Whorkaround:GetElvUIClass(name) end
+        if (not class or class == "Unknown") and Whorkaround_DB and Whorkaround_DB[name] then class = Whorkaround_DB[name].class end
+    end
+
     if not faction then
         if level == 0 then faction = enemyFaction
         else faction = playerFaction end
     end
 
     local msg
+    local classColor = GetClassColorCode(class, name)
+    
     if level == 0 then
-        msg = string.format("%s|Hplayer:%s|h[%s]|h: Could not find info, maybe they're %s?", prefix, name, name, faction or enemyFaction)
+        -- Handle detected enemies with whatever info we have
+        local classText = (class and class ~= "Unknown") and string.format("%s%s|r ", classColor, class) or ""
+        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s (Enemy detected)", prefix, name, classColor, name, classText, faction)
     else
         level = level or 0; area = area or "Unknown"; class = class or "Unknown"
-        local classColor = GetClassColorCode(class, name)
         local levelColor = (level == 60) and "|cffffd100" or "|cffffffff"
         local status = cached and "|cff888888- Offline (Cached)|r" or string.format("- %s", area)
         msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %s%d|r %s%s|r %s", prefix, name, classColor, name, levelColor, level, classColor, class, status)

@@ -3,6 +3,10 @@ local addonName, Whorkaround = ...
 local CH_NAME = "WhorkComm"
 local CH_ID = nil
 local MSG_PREFIX = "WK:" 
+local VERSION_PREFIX = "WKV:"
+local GITHUB_URL = "https://github.com/ZythDr/Whorkaround"
+local currentVersion = GetAddOnMetadata(addonName, "Version") or "1.0"
+local notifiedUpdate = false
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -16,6 +20,19 @@ local validClasses = {
     ["DRUID"] = true,
 }
 local validFactions = { ["Alliance"] = true, ["Horde"] = true }
+
+-- Version comparison (e.g., "1.1.2" vs "1.2.0")
+local function IsNewerVersion(newVer, oldVer)
+    local newParts = {string.match(newVer, "(%d+)%.?(%d*)%.?(%d*)")}
+    local oldParts = {string.match(oldVer, "(%d+)%.?(%d*)%.?(%d*)")}
+    for i = 1, 3 do
+        local n = tonumber(newParts[i]) or 0
+        local o = tonumber(oldParts[i]) or 0
+        if n > o then return true end
+        if n < o then return false end
+    end
+    return false
+end
 
 local function JoinCommChannel()
     local id, name = GetChannelName(CH_NAME)
@@ -34,10 +51,13 @@ local function JoinCommChannel()
             local newId = GetChannelName(CH_NAME)
             if newId and newId > 0 then
                 CH_ID = newId
+                -- Hide channel from chat frames
                 for i = 1, 10 do
                     local cf = _G["ChatFrame"..i]
                     if cf then ChatFrame_RemoveChannel(cf, CH_NAME) end
                 end
+                -- Broadcast current version once joined
+                SendChatMessage(VERSION_PREFIX .. currentVersion, "CHANNEL", nil, CH_ID)
                 self:SetScript("OnUpdate", nil)
             end
         end
@@ -60,23 +80,27 @@ frame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "CHAT_MSG_CHANNEL" then
         local msg, sender, lang, chNameWithID, sender2, flags, zoneID, chID, chName = ...
         if chName == CH_NAME and sender ~= UnitName("player") then
-            if msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
+            -- Handle Version Check
+            if msg:sub(1, #VERSION_PREFIX) == VERSION_PREFIX then
+                local remoteVersion = msg:sub(#VERSION_PREFIX + 1)
+                if not notifiedUpdate and IsNewerVersion(remoteVersion, currentVersion) then
+                    local prefix = "|cff1abc9cWhorkaround Update:|r "
+                    DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVersion .. "|r) is available!")
+                    DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Download here: |cff0070dd" .. GITHUB_URL .. "|r")
+                    notifiedUpdate = true
+                end
+            -- Handle Data Broadcasts
+            elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
                 local data = msg:sub(#MSG_PREFIX + 1)
-                -- Increased pattern strictness to prevent "poisoning" via malformed strings
-                local name, level, class, zone, faction = data:match("^([^:]+):(%d+):([^:]+):([^:]+):([^:]+)$")
+                local name, level, class, zone, faction = data:match("^(.-):(%d+):(.-):(.-):(.-)$")
                 if name and name:len() <= 12 and name:match("^[%a]+$") then
                     level = tonumber(level)
                     class = (class or ""):upper()
-                    -- Strict Logic Check: If any of these are invalid, we toss the whole packet
                     if level and level > 0 and level <= 60 and validClasses[class] and validFactions[faction] and zone:len() < 50 then
                         if Whorkaround_DB then
                             Whorkaround_DB[name] = {
-                                class = class,
-                                level = level,
-                                zone = zone,
-                                faction = faction,
-                                lastSeen = time(),
-                                source = "WhorkComm"
+                                class = class, level = level, zone = zone,
+                                faction = faction, lastSeen = time(), source = "WhorkComm"
                             }
                         end
                     end
@@ -89,13 +113,9 @@ end)
 function Whorkaround:Broadcast(name, level, class, zone, faction)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
-        -- Sanitize outgoing data to ensure we don't accidentally send malformed strings
         name = name:match("^%a+") or name
         class = (class or "Unknown"):upper()
-        zone = zone or "Unknown"
-        faction = faction or "Unknown"
-        
-        local msg = string.format("%s%s:%d:%s:%s:%s", MSG_PREFIX, name, level, class, zone, faction)
+        local msg = string.format("%s%s:%d:%s:%s:%s", MSG_PREFIX, name, level, class, zone or "Unknown", faction or "Unknown")
         SendChatMessage(msg, "CHANNEL", nil, id)
     end
 end
@@ -105,8 +125,8 @@ function Whorkaround:CheckComm()
     local prefix = "|cff1abc9cWhorkaround Debug:|r "
     if id and id > 0 then
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel active at index " .. id)
-        SendChatMessage(MSG_PREFIX .. "TEST:0:NONE:NONE:Unknown", "CHANNEL", nil, id)
-        DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Sent test broadcast. If channel is enabled in settings, you should see it.")
+        DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Current Version: |cffffd100v" .. currentVersion .. "|r")
+        SendChatMessage(VERSION_PREFIX .. currentVersion, "CHANNEL", nil, id)
     else
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel NOT active. Attempting rejoin...")
         JoinCommChannel()
