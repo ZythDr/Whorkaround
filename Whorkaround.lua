@@ -96,7 +96,6 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
         Whorkaround_DB[name] = { class = class, level = level, zone = area, faction = faction, lastSeen = time(), source = source or (cached and "Cache" or "FriendsList") }
     end
     
-    -- BROADCAST logic: Broadcast if it's live data OR if it's a manual source (not just a background passive harvest)
     if (not cached or source == "FriendsList" or source == "Manual") and level > 0 and level <= 60 and Whorkaround.Broadcast then 
         Whorkaround:Broadcast(name, level, class, area, faction) 
     end
@@ -204,7 +203,21 @@ function Whorkaround:Query(name, silent)
     if not name or name == "" then return end
     name = name:gsub("^%s*(.-)%s*$", "%1"):lower():gsub("^%l", string.upper)
     if pendingQueries[name] then return end -- Already querying
-    pendingQueries[name] = silent and "SILENT" or GetTime(); addedSuppression[name] = GetTime(); AddFriend(name); ShowFriends() 
+    
+    -- Check if they are already a real friend
+    for i = 1, GetNumFriends() do
+        local fName, level, class, area, connected = GetFriendInfo(i)
+        if fName == name then 
+            -- Found them! No need to call AddFriend.
+            if not silent then PrintWhoResult(fName, level, class, area, false, "FriendsList") end
+            return 
+        end
+    end
+    
+    pendingQueries[name] = silent and "SILENT" or GetTime()
+    addedSuppression[name] = GetTime()
+    AddFriend(name)
+    ShowFriends() 
 end
 
 local function GetFocusedEditBox()
