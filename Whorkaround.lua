@@ -83,16 +83,29 @@ local function GetOutputFrame()
     return DEFAULT_CHAT_FRAME
 end
 
+-- Helper for relative time strings
+local function GetRelativeTime(timestamp)
+    if not timestamp or timestamp == 0 then return "Unknown" end
+    local diff = time() - timestamp
+    if diff < 60 then return "Just now"
+    elseif diff < 3600 then return string.format("%d min ago", diff / 60)
+    elseif diff < 86400 then return string.format("%d hours ago", diff / 3600)
+    else return string.format("%d days ago", diff / 86400) end
+end
+
 -- Function to print the "Who" result
 local function PrintWhoResult(name, level, class, area, cached, source, faction)
     local playerFaction = UnitFactionGroup("player")
     local enemyFaction = (playerFaction == "Alliance") and "Horde" or "Alliance"
     local prefix = "|cff1abc9cWhorkaround:|r "
     
-    -- Try to harvest class from secondary sources if it's missing (even for level 0)
+    -- Cache lookup for secondary data
+    local cachedData = Whorkaround_DB and Whorkaround_DB[name]
+    
+    -- Try to harvest class from secondary sources if it's missing
     if not class or class == "Unknown" then
         if Whorkaround.GetElvUIClass then class = Whorkaround:GetElvUIClass(name) end
-        if (not class or class == "Unknown") and Whorkaround_DB and Whorkaround_DB[name] then class = Whorkaround_DB[name].class end
+        if (not class or class == "Unknown") and cachedData then class = cachedData.class end
     end
 
     if not faction then
@@ -102,20 +115,27 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
 
     local msg
     local classColor = GetClassColorCode(class, name)
+    local timeText = (cached and cachedData and cachedData.lastSeen) and string.format(" |cff888888(Seen %s)|r", GetRelativeTime(cachedData.lastSeen)) or ""
     
     if level == 0 then
-        -- Handle detected enemies with whatever info we have
+        -- Handle detected enemies with cached data
+        local cLevel = (cachedData and cachedData.level and cachedData.level > 0) and string.format("Level %d ", cachedData.level) or ""
         local classText = (class and class ~= "Unknown") and string.format("%s%s|r ", classColor, class) or ""
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s (Enemy detected)", prefix, name, classColor, name, classText, faction)
+        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s%s (Enemy)%s", prefix, name, classColor, name, cLevel, classText, faction, timeText)
     else
         level = level or 0; area = area or "Unknown"; class = class or "Unknown"
         local levelColor = (level == 60) and "|cffffd100" or "|cffffffff"
-        local status = cached and "|cff888888- Offline (Cached)|r" or string.format("- %s", area)
+        local status = cached and string.format("|cff888888- Offline (Cached)%s|r", timeText) or string.format("- %s", area)
         msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %s%d|r %s%s|r %s", prefix, name, classColor, name, levelColor, level, classColor, class, status)
     end
 
     if Whorkaround_DB then
-        Whorkaround_DB[name] = { class = class, level = level, zone = area, faction = faction, lastSeen = time(), source = source or (cached and "Cache" or "FriendsList") }
+        Whorkaround_DB[name] = { 
+            class = class, level = (level > 0) and level or (cachedData and cachedData.level), 
+            zone = (level > 0) and area or (cachedData and cachedData.zone),
+            faction = faction, lastSeen = (not cached) and time() or (cachedData and cachedData.lastSeen or time()), 
+            source = source or (cached and "Cache" or "FriendsList") 
+        }
     end
     
     if (not cached or source == "FriendsList" or source == "Manual") and level > 0 and level <= 60 and Whorkaround.Broadcast then 
@@ -131,10 +151,11 @@ function Whorkaround:TryAllOtherSources(name, silent)
         if not silent then PrintWhoResult(name, gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) end
         return true
     end
-    if Whorkaround.GetElvUIClass then Whorkaround:GetElvUIClass(name) end
+    
     local data = Whorkaround_DB and Whorkaround_DB[name]
-    if data and data.level and data.level > 0 then
-        if not silent then PrintWhoResult(name, data.level, data.class, data.zone, true, data.source, data.faction) end
+    if data and data.class then
+        -- We return true if we have ANY data now, even if it's just class from ElvUI
+        if not silent then PrintWhoResult(name, data.level or 0, data.class, data.zone or "Unknown", true, data.source, data.faction) end
         return true
     end
     return false
@@ -143,7 +164,7 @@ end
 -- Statistics Command
 function Whorkaround:ShowStats()
     if not Whorkaround_DB then return end
-    local total, sources, factions = 0, { FriendsList = 0, GuildRoster = 0, ElvUI = 0, WhorkComm = 0, Cache = 0 }, { Alliance = 0, Horde = 0, Unknown = 0 }
+    local total, sources, factions = 0, { FriendsList = 0, GuildRoster = 0, ElvUI = 0, ElvUI_Enhanced = 0, WhorkComm = 0, Cache = 0 }, { Alliance = 0, Horde = 0, Unknown = 0 }
     for name, data in pairs(Whorkaround_DB) do
         if type(data) == "table" then
             total = total + 1
@@ -247,15 +268,20 @@ local function GetFocusedEditBox()
     if ChatFrameEditBox and ChatFrameEditBox:HasFocus() then return ChatFrameEditBox end
 end
 
--- Smarter Chat Link Filter
+-- Smarter Case-Insensitive Chat Link Filter
 local function ChatLinkFilter(self, event, msg, ...)
     if type(msg) == "string" and (msg:find("%[") or msg:find("@")) then
         msg = msg:gsub("(|H.-|h.-|h)", function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
+        
         local function ReplacementFunc(name)
-            local data = Whorkaround_DB and Whorkaround_DB[name]
-            local color = GetClassColorCode(data and data.class, name)
-            return string.format("|Hplayer:%s|h[|r%s%s|r]|h", name, color, name)
+            -- Normalize name: First letter Upper, rest Lower (e.g., zythdr -> Zythdr)
+            local cleanName = name:lower():gsub("^%l", string.upper)
+            local data = Whorkaround_DB and Whorkaround_DB[cleanName]
+            local color = GetClassColorCode(data and data.class, cleanName)
+            -- Replace with properly capitalized link and [Name] format
+            return string.format("|Hplayer:%s|h[|r%s%s|r]|h", cleanName, color, cleanName)
         end
+        
         msg = msg:gsub("%[([%a]+)%]", ReplacementFunc)
         msg = msg:gsub("@([%a]+)", ReplacementFunc)
         msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
@@ -270,8 +296,13 @@ local function OnEditBoxTextChanged(self)
     local text = self:GetText()
     if not text then return end
     local function TriggerQuery(name)
-        local data = Whorkaround_DB and Whorkaround_DB[name]
-        if not data or (time() - (data.lastSeen or 0) > 3600) then Whorkaround:Query(name, true) end
+        -- Normalize name for background query as well
+        local cleanName = name:lower():gsub("^%l", string.upper)
+        local data = Whorkaround_DB and Whorkaround_DB[cleanName]
+        -- Relaxed rule for enemies: If we know they are Horde/Alliance, only query if VERY stale (24h)
+        local isEnemy = data and data.faction and data.faction ~= UnitFactionGroup("player")
+        local timeout = isEnemy and 86400 or 3600
+        if not data or (time() - (data.lastSeen or 0) > timeout) then Whorkaround:Query(cleanName, true) end
     end
     for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
     for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
