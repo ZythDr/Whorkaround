@@ -18,6 +18,7 @@ Whorkaround is `/who` workaround for Project Epoch where `/who` is disabled. It 
 - `/whostats` - Displays a breakdown of your current database, including total players found and their sources.
 - `/whotoggle` - Toggles the automatic `/who` override on or off.
 - `/whocleardb` - Wipes your local player database and starts fresh.
+- `/whotab [TabName]` - Redirects addon output to a specific chat tab (e.g., `/whotab Queries`). Leave blank to reset to default.
 
 ### Compatibility
 

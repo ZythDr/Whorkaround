@@ -70,6 +70,19 @@ local function GetClassColorCode(className, name)
     return "|cffffffff"
 end
 
+-- Helper to get the correct output chat frame
+local function GetOutputFrame()
+    if Whorkaround_Settings and Whorkaround_Settings.outputTab then
+        for i = 1, NUM_CHAT_WINDOWS do
+            local name = GetChatWindowInfo(i)
+            if name and name:lower() == Whorkaround_Settings.outputTab:lower() then
+                return _G["ChatFrame"..i]
+            end
+        end
+    end
+    return DEFAULT_CHAT_FRAME
+end
+
 -- Function to print the "Who" result
 local function PrintWhoResult(name, level, class, area, cached, source, faction)
     local playerFaction = UnitFactionGroup("player")
@@ -99,7 +112,7 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
     if (not cached or source == "FriendsList" or source == "Manual") and level > 0 and level <= 60 and Whorkaround.Broadcast then 
         Whorkaround:Broadcast(name, level, class, area, faction) 
     end
-    DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 1.0, 0.0)
+    GetOutputFrame():AddMessage(msg, 1.0, 1.0, 0.0)
 end
 
 -- Fallback check for all secondary sources
@@ -129,10 +142,11 @@ function Whorkaround:ShowStats()
             if data.faction then factions[data.faction] = (factions[data.faction] or 0) + 1 else factions.Unknown = factions.Unknown + 1 end
         end
     end
-    DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround Stats:|r")
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("- Total Cached Players: |cffffd100%d|r", total))
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("- Factions: Alliance (|cff0070dd%d|r), Horde (|cffff2020%d|r)", factions.Alliance or 0, factions.Horde or 0))
-    DEFAULT_CHAT_FRAME:AddMessage("- Sources: Manual: "..sources.FriendsList..", Guild: "..sources.GuildRoster..", ElvUI: "..sources.ElvUI..", Comm: "..sources.WhorkComm)
+    local output = GetOutputFrame()
+    output:AddMessage("|cff1abc9cWhorkaround Stats:|r")
+    output:AddMessage(string.format("- Total Cached Players: |cffffd100%d|r", total))
+    output:AddMessage(string.format("- Factions: Alliance (|cff0070dd%d|r), Horde (|cffff2020%d|r)", factions.Alliance or 0, factions.Horde or 0))
+    output:AddMessage("- Sources: Manual: "..sources.FriendsList..", Guild: "..sources.GuildRoster..", ElvUI: "..sources.ElvUI..", Comm: "..sources.WhorkComm)
 end
 
 -- System Message Filter
@@ -181,7 +195,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         local name = ...; if name == "Whorkaround" then 
             Whorkaround_DB = Whorkaround_DB or {}
-            Whorkaround_Settings = Whorkaround_Settings or { overrideWho = true }
+            Whorkaround_Settings = Whorkaround_Settings or { overrideWho = true, outputTab = nil }
             self:UnregisterEvent("ADDON_LOADED") 
         end
     elseif event == "FRIENDLIST_UPDATE" then
@@ -208,7 +222,6 @@ function Whorkaround:Query(name, silent)
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
         if fName == name then 
-            -- Found them! No need to call AddFriend.
             if not silent then PrintWhoResult(fName, level, class, area, false, "FriendsList") end
             return 
         end
@@ -285,7 +298,7 @@ local function HookChat()
 end
 HookChat()
 
-SLASH_WHORK1 = "/whork"; SLASH_WHORK2 = "/whorkaround"; SLASH_WHORK3 = "/whom"; SLASH_WHORK4 = "/who"; SLASH_WSTATS1 = "/whostats"; SLASH_WTOGGLE1 = "/whotoggle"; SLASH_WCLEAR1 = "/whocleardb"; SLASH_WDEBUG1 = "/whodebug"
+SLASH_WHORK1 = "/whork"; SLASH_WHORK2 = "/whorkaround"; SLASH_WHORK3 = "/whom"; SLASH_WHORK4 = "/who"; SLASH_WSTATS1 = "/whostats"; SLASH_WTOGGLE1 = "/whotoggle"; SLASH_WCLEAR1 = "/whocleardb"; SLASH_WDEBUG1 = "/whodebug"; SLASH_WTAB1 = "/whotab"
 
 SlashCmdList["WHORK"] = function(msg) Whorkaround:Query(msg) end
 SlashCmdList["WHO"] = function(msg)
@@ -308,5 +321,14 @@ SlashCmdList["WDEBUG"] = function()
     if Whorkaround.CheckComm then Whorkaround:CheckComm() 
     else DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Comm module not loaded!") end
 end
+SlashCmdList["WTAB"] = function(msg)
+    if not msg or msg == "" then
+        Whorkaround_Settings.outputTab = nil
+        DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Output reset to default chat window.")
+    else
+        Whorkaround_Settings.outputTab = msg
+        DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Output redirected to tab: |cffffd100" .. msg .. "|r")
+    end
+end
 
-print("|cff1abc9cWhorkaround|r loaded. Use /whodebug to check network.")
+print("|cff1abc9cWhorkaround|r loaded. Use /whotab [TabName] to redirect output.")
