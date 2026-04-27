@@ -55,7 +55,6 @@ local function JoinCommChannel()
                     local cf = _G["ChatFrame"..i]
                     if cf then ChatFrame_RemoveChannel(cf, CH_NAME) end
                 end
-                SendChatMessage(VERSION_PREFIX .. currentVersion, "CHANNEL", nil, CH_ID)
                 self:SetScript("OnUpdate", nil)
             end
         end
@@ -69,13 +68,13 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         if joinTimer <= 0 then JoinCommChannel() end
     end
 
-    -- Process scheduled responses (Suppression logic)
+    -- Process scheduled responses (Seniority Suppression logic)
     local now = GetTime()
     for name, sendTime in pairs(scheduledResponses) do
         if now >= sendTime then
             local data = Whorkaround_DB and Whorkaround_DB[name]
             if data and data.level and data.level > 0 then
-                Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction)
+                Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen)
             end
             scheduledResponses[name] = nil
         end
@@ -105,29 +104,52 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 local targetName = msg:sub(#REQ_PREFIX + 1)
                 local data = Whorkaround_DB and Whorkaround_DB[targetName]
                 if data and data.level and data.level > 0 then
-                    -- Schedule a response with random delay (0.5 to 2.5s) to avoid storms
+                    -- SENIORITY SUPPRESSION:
+                    -- Delay is based on data age. Newest data (fresh) replies first.
+                    local age = time() - (data.lastSeen or 0)
+                    local baseDelay = 0.5
+                    -- Age factor: 0.1s delay for every hour of age, capped at 4s
+                    local ageFactor = math.min(4.0, (age / 3600) * 0.1)
+                    local randomBuffer = math.random() * 0.5 -- Small random buffer to split exact ties
+                    
                     if not scheduledResponses[targetName] then
-                        scheduledResponses[targetName] = GetTime() + 0.5 + (math.random() * 2.0)
+                        scheduledResponses[targetName] = GetTime() + baseDelay + ageFactor + randomBuffer
                     end
                 end
 
             -- Handle Data Broadcasts (WK:)
             elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
                 local data = msg:sub(#MSG_PREFIX + 1)
-                local name, level, class, zone, faction = data:match("^(.-):(%d+):(.-):(.-):(.-)$")
+                -- FORMAT: WK:Version:Name:Level:Class:Zone:F:Timestamp
+                local remoteVer, name, level, class, zone, f, timestamp = data:match("^(.-):(.-):(%d+):(.-):(.-):(.-):(%d+)$")
                 
-                -- Suppression: If we hear someone else answer a request, cancel our own schedule
+                if remoteVer and not notifiedUpdate and IsNewerVersion(remoteVer, currentVersion) then
+                    local prefix = "|cff1abc9cWhorkaround Update:|r "
+                    DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVer .. "|r) is available!")
+                    notifiedUpdate = true
+                end
+
+                -- Suppression: If we hear anyone else answer a request, cancel our own schedule
                 if name then scheduledResponses[name] = nil end
 
                 if name and name:len() <= 12 and name:match("^[%a]+$") then
                     level = tonumber(level)
                     class = (class or ""):upper()
+                    timestamp = tonumber(timestamp) or time()
+                    local faction = (f == "A") and "Alliance" or (f == "H" and "Horde" or "Unknown")
                     if level and level > 0 and level <= 60 and validClasses[class] and validFactions[faction] and zone:len() < 50 then
                         if Whorkaround_DB then
-                            Whorkaround_DB[name] = {
-                                class = class, level = level, zone = zone,
-                                faction = faction, lastSeen = time(), source = "WhorkComm"
-                            }
+                            -- Only update if the network data is newer than what we have
+                            if not Whorkaround_DB[name] or timestamp > (Whorkaround_DB[name].lastSeen or 0) then
+                                Whorkaround_DB[name] = {
+                                    class = class, level = level, zone = zone,
+                                    faction = faction, lastSeen = timestamp, source = "WhorkComm"
+                                }
+                                -- If we were explicitly waiting for this name, trigger the UI update
+                                if Whorkaround.ResolveNetworkWait then
+                                    Whorkaround:ResolveNetworkWait(name, level, class, zone, faction)
+                                end
+                            end
                         end
                     end
                 end
@@ -136,12 +158,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
-function Whorkaround:Broadcast(name, level, class, zone, faction)
+function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
         name = name:match("^%a+") or name
         class = (class or "Unknown"):upper()
-        local msg = string.format("%s%s:%d:%s:%s:%s", MSG_PREFIX, name, level, class, zone or "Unknown", faction or "Unknown")
+        timestamp = timestamp or time()
+        local f = (faction == "Alliance") and "A" or (faction == "Horde" and "H" or "U")
+        -- Include version and timestamp in the broadcast
+        local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d", MSG_PREFIX, currentVersion, name, level, class, zone or "Unknown", f, timestamp)
         SendChatMessage(msg, "CHANNEL", nil, id)
     end
 end

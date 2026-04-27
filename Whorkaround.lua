@@ -161,6 +161,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
     GetOutputFrame():AddMessage(msg, 1.0, 1.0, 0.0)
 end
 
+-- Resolves a network wait silently if it was pending
+function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction)
+    if networkWaiters[name] then
+        Whorkaround:PrintWhoResult(name, level, class, zone, true, "WhorkComm", faction)
+    end
+end
+
 -- Fallback check for all secondary sources
 function Whorkaround:TryAllOtherSources(name, silent)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(name)
@@ -273,8 +280,33 @@ end)
 function Whorkaround:Query(name, silent)
     if not name or name == "" then return end
     name = name:gsub("^%s*(.-)%s*$", "%1"):lower():gsub("^%l", string.upper)
-    if pendingQueries[name] then return end -- Already querying
+    if pendingQueries[name] or networkWaiters[name] then return end -- Already querying
     
+    -- Handle known enemies intelligently
+    local playerFaction = UnitFactionGroup("player")
+    local cachedData = Whorkaround_DB and Whorkaround_DB[name]
+    local isEnemy = cachedData and cachedData.faction and cachedData.faction ~= playerFaction and cachedData.faction ~= "Unknown"
+
+    if isEnemy and not silent then
+        -- REQUEST FIRST: Unless data is extremely fresh (< 3 mins), we always scan the network to ensure accuracy.
+        local isFresh = cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 180)
+        
+        if isFresh then
+            -- Data is super fresh, print it instantly.
+            Whorkaround:PrintWhoResult(name, cachedData.level, cachedData.class, cachedData.zone, true, "Cache", cachedData.faction)
+            return
+        elseif Whorkaround.Request then
+            -- Data is stale or missing. Wait for the network.
+            local classColor = GetClassColorCode(cachedData.class, name)
+            local factionColor = (cachedData.faction == "Horde") and "|cffff2020" or "|cff0070dd"
+            local prefix = "|cff1abc9cWhorkaround:|r "
+            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, cachedData.faction), 1, 1, 0)
+            networkWaiters[name] = GetTime()
+            Whorkaround:Request(name)
+            return
+        end
+    end
+
     -- Check if they are already a real friend
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
