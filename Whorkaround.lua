@@ -158,8 +158,16 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
     else
         -- NO DATA FOUND (Final fallback)
         if source == "TIMEOUT" then
-            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s", prefix, name, classColor, name, faction), 1, 1, 0)
-            GetOutputFrame():AddMessage(prefix .. "User is offline and no community data was found.", 1.0, 1.0, 0.0)
+            local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
+            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s|r", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
+            
+            local failMsg = "No community data was found."
+            if faction == playerFaction then
+                failMsg = "User is offline and no community data was found."
+            else
+                failMsg = "Enemy detected, but no community data was found."
+            end
+            GetOutputFrame():AddMessage(prefix .. failMsg, 1.0, 1.0, 0.0)
         end
     end
 
@@ -189,12 +197,17 @@ end
 function Whorkaround:TryAllOtherSources(name, silent)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(name)
     if gLevel and gLevel > 0 then
-        if not silent then Whorkaround:PrintWhoResult(name, gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) end
+        if not silent then 
+            -- If guild zone is 'Offline', treat as level 0 to trigger network scan if stale
+            local isOffline = (gZone == "Offline")
+            Whorkaround:PrintWhoResult(name, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) 
+        end
         return true
     end
     local data = Whorkaround_DB and Whorkaround_DB[name]
     if data and data.class then
-        if not silent then Whorkaround:PrintWhoResult(name, data.level or 0, data.class, data.zone or "Unknown", true, data.source, data.faction) end
+        -- Pass level 0 to trigger freshness check/network scan in PrintWhoResult
+        if not silent then Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", true, "Cache", data.faction) end
         return true
     end
     return false
@@ -316,8 +329,13 @@ function Whorkaround:Query(name, silent)
     end
 
     for i = 1, GetNumFriends() do
-        local fName = GetFriendInfo(i)
-        if fName == name then if not silent then Whorkaround:PrintWhoResult(fName, nil, nil, nil, false, "FriendsList") end; return end
+        local fName, level, class, area, connected = GetFriendInfo(i)
+        if fName == name then 
+            if not silent then 
+                Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, false, "FriendsList") 
+            end
+            return 
+        end
     end
     pendingQueries[name] = silent and "SILENT" or GetTime(); addedSuppression[name] = GetTime(); AddFriend(name); ShowFriends() 
 end

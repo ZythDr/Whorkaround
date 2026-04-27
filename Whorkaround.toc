@@ -2,7 +2,7 @@
 ## Title: Whorkaround
 ## Notes: A "best-effort" workaround addon for Epoch's disabled /who query system.
 ## Author: ZythDr
-## Version: 1.3.3
+## Version: 1.3.4
 ## SavedVariables: Whorkaround_DB, Whorkaround_Settings
 ## OptionalDeps: ElvUI
 
