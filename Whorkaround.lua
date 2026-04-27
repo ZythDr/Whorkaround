@@ -88,22 +88,22 @@ end
 local function GetRelativeTime(timestamp)
     if not timestamp or timestamp == 0 then return "Unknown" end
     local diff = time() - timestamp
-    if diff < 60 then return "Just now"
+    if diff < 60 then return "1 min ago"
     elseif diff < 3600 then return string.format("%d min ago", diff / 60)
     elseif diff < 86400 then return string.format("%d hours ago", diff / 3600)
     else return string.format("%d days ago", diff / 86400) end
 end
 
 -- Function to print the "Who" result
-function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, faction)
+function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, faction, timestamp)
     local playerFaction = UnitFactionGroup("player")
     local enemyFaction = (playerFaction == "Alliance") and "Horde" or "Alliance"
     local prefix = "|cff1abc9cWhorkaround:|r "
     
     -- Cache lookup for secondary data
     local cachedData = Whorkaround_DB and Whorkaround_DB[name]
+    timestamp = timestamp or (cachedData and cachedData.lastSeen) or time()
     
-    -- Try to harvest class from secondary sources if it's missing
     if not class or class == "Unknown" then
         if Whorkaround.GetElvUIClass then class = Whorkaround:GetElvUIClass(name) end
         if (not class or class == "Unknown") and cachedData then class = cachedData.class end
@@ -114,57 +114,74 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
         else faction = playerFaction end
     end
 
-    local msg
     local classColor = GetClassColorCode(class, name)
-    local timeText = (cached and cachedData and cachedData.lastSeen) and string.format(" |cff888888(Seen %s)|r", GetRelativeTime(cachedData.lastSeen)) or ""
+    local timeText = string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
     
-    if level == 0 then
-        -- FORCE NETWORK REQUEST FOR ENEMIES (unless already responding or silent)
-        if Whorkaround.Request and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "WhorkComm" and not networkWaiters[name] then
-            local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
-            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
-            networkWaiters[name] = GetTime()
-            Whorkaround:Request(name)
-            return -- Wait for network discovery
+    -- OFFLINE OR ENEMY DETECTION (Trigger network search)
+    if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" then
+        if Whorkaround.Request and not networkWaiters[name] then
+            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - timestamp < 180)
+            if not isFresh then
+                local statusMsg = (level == 0) and "identified as " .. faction or "appears to be offline"
+                local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
+                GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor, name, statusMsg), 1, 1, 0)
+                networkWaiters[name] = GetTime()
+                Whorkaround:Request(name)
+                return 
+            end
         end
-
-        -- Handle detected enemies (Fallback to Cache or Network Response)
-        local cLevel = (cachedData and cachedData.level and cachedData.level > 0) and string.format("Level %d ", cachedData.level) or ""
-        local classText = (class and class ~= "Unknown") and string.format("%s%s|r ", classColor, class) or ""
-        local factionText = (cLevel == "" and classText == "") and faction or faction
-        local netDiscovery = (source == "WhorkComm") and " |cff888888(Network discovery)|r" or ""
-        
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s%s%s%s", prefix, name, classColor, name, cLevel, classText, faction, timeText, netDiscovery)
-    else
-        level = level or 0; area = area or "Unknown"; class = class or "Unknown"
-        local levelColor = (level == 60) and "|cffffd100" or "|cffffffff"
-        local status = cached and string.format("|cff888888- Offline (Cached)%s|r", timeText) or string.format("- %s", area)
-        local sourceText = (source == "WhorkComm") and " |cff888888(Network discovery)|r" or ""
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %s%d|r %s%s|r %s%s", prefix, name, classColor, name, levelColor, level, classColor, class, status, sourceText)
     end
 
-    -- Clear network wait state once we actually print a result
+    -- Clear network wait state
     networkWaiters[name] = nil
 
+    -- Format the message
+    if (level and level > 0) or (cachedData and cachedData.level and cachedData.level > 0) then
+        -- We have data (Network, Cache, or Live Ally)
+        local displayLevel = (level and level > 0) and level or cachedData.level
+        local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
+        local displayFaction = faction or cachedData.faction or "Unknown"
+        
+        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, name, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
+        
+        -- Success line with tooltips
+        if source == "WhorkComm" or source == "TIMEOUT" then
+            local isLive = (time() - timestamp < 180)
+            local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
+            local line2 = string.format("%sData %s|Hwhork:%s|h%s|h was successfully fetched from network.", prefix, statusLabel, isLive and "live" or "cached", statusLabel)
+            GetOutputFrame():AddMessage(line1, 1.0, 1.0, 0.0)
+            GetOutputFrame():AddMessage(line2, 1.0, 1.0, 0.0)
+        else
+            -- Regular Ally (Live)
+            GetOutputFrame():AddMessage(line1, 1.0, 1.0, 0.0)
+        end
+    else
+        -- NO DATA FOUND (Final fallback)
+        if source == "TIMEOUT" then
+            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s", prefix, name, classColor, name, faction), 1, 1, 0)
+            GetOutputFrame():AddMessage(prefix .. "User is offline and no community data was found.", 1.0, 1.0, 0.0)
+        end
+    end
+
+    -- Update Database
     if Whorkaround_DB then
         Whorkaround_DB[name] = { 
-            class = class, level = (level > 0) and level or (cachedData and cachedData.level), 
-            zone = (level > 0) and area or (cachedData and cachedData.zone),
-            faction = faction, lastSeen = (not cached) and time() or (cachedData and cachedData.lastSeen or time()), 
+            class = class, level = (level and level > 0) and level or (cachedData and cachedData.level), 
+            zone = (level and level > 0 and area ~= "Unknown") and area or (cachedData and cachedData.zone),
+            faction = faction, lastSeen = timestamp, 
             source = source or (cached and "Cache" or "FriendsList") 
         }
     end
     
-    if (not cached or source == "FriendsList" or source == "Manual") and level > 0 and level <= 60 and Whorkaround.Broadcast then 
-        Whorkaround:Broadcast(name, level, class, area, faction) 
+    if (not cached or source == "FriendsList" or source == "Manual") and level and level > 0 and level <= 60 and Whorkaround.Broadcast then 
+        Whorkaround:Broadcast(name, level, class, area, faction, timestamp) 
     end
-    GetOutputFrame():AddMessage(msg, 1.0, 1.0, 0.0)
 end
 
 -- Resolves a network wait silently if it was pending
-function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction)
+function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, timestamp)
     if networkWaiters[name] then
-        Whorkaround:PrintWhoResult(name, level, class, zone, true, "WhorkComm", faction)
+        Whorkaround:PrintWhoResult(name, level, class, zone, true, "WhorkComm", faction, timestamp)
     end
 end
 
@@ -175,7 +192,6 @@ function Whorkaround:TryAllOtherSources(name, silent)
         if not silent then Whorkaround:PrintWhoResult(name, gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) end
         return true
     end
-    
     local data = Whorkaround_DB and Whorkaround_DB[name]
     if data and data.class then
         if not silent then Whorkaround:PrintWhoResult(name, data.level or 0, data.class, data.zone or "Unknown", true, data.source, data.faction) end
@@ -205,21 +221,23 @@ end
 -- System Message Filter
 local function SystemMessageFilter(self, event, msg)
     if not msg then return end
-    
-    -- Suppress Friends List activity
     local nameAdded = msg:match(addedPattern)
     if nameAdded and (pendingQueries[nameAdded] or addedSuppression[nameAdded]) then return true end
     local nameRemoved = msg:match(removedPattern)
     if nameRemoved and removingFriends[nameRemoved] then return true end
-    
-    -- Suppress "You have joined the channel: WhorkComm" spam
     local chJoined = msg:match(joinPattern)
     if chJoined and (chJoined:find("WhorkComm") or chJoined:find("1. WhorkComm")) then return true end
     local chLeft = msg:match(leavePattern)
     if chLeft and (chLeft:find("WhorkComm") or chLeft:find("1. WhorkComm")) then return true end
-
     if msg == ERR_FRIEND_NOT_FOUND then
-        for name, startTime in pairs(pendingQueries) do if type(startTime) == "number" and GetTime() - startTime < 1 then return true end end
+        for name, startTime in pairs(pendingQueries) do 
+            if type(startTime) == "number" and GetTime() - startTime < 2 then 
+                -- Player not found = Offline or Enemy. Trigger network scan.
+                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
+                pendingQueries[name] = nil
+                return true 
+            end 
+        end
     end
 end
 ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
@@ -234,18 +252,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         for name, startTime in pairs(pendingQueries) do
             if type(startTime) == "number" then
                 local diff = now - startTime
-                if diff > 0.3 and pendingQueries[name] ~= "TIMEOUT" then
-                    local found = Whorkaround:TryAllOtherSources(name, pendingQueries[name] == "SILENT")
-                    if found then pendingQueries[name] = "TIMEOUT"; removingFriends[name] = GetTime(); RemoveFriend(name) end
+                if diff > 0.5 and pendingQueries[name] ~= "TIMEOUT" then
+                    -- If they weren't found in 0.5s, they are likely offline.
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
+                    pendingQueries[name] = "TIMEOUT"; removingFriends[name] = GetTime(); RemoveFriend(name)
                 end
                 if diff > 5 then pendingQueries[name] = nil; addedSuppression[name] = nil; removingFriends[name] = nil end
             end
         end
-
-        -- Handle Network Waiters (Timeout after 4.0s)
         for name, waitTime in pairs(networkWaiters) do
             if now - waitTime > 4.0 then
-                -- AVOID LOOP: We must clear the waiter BEFORE calling the fallback
                 networkWaiters[name] = nil
                 local data = Whorkaround_DB and Whorkaround_DB[name]
                 Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", true, "TIMEOUT", data and data.faction)
@@ -266,89 +282,46 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local name, level, class, area, connected = GetFriendInfo(i)
             if name and pendingQueries[name] and pendingQueries[name] ~= "TIMEOUT" then
                 if connected then
-                    local mode = (pendingQueries[name] == "SILENT") and "SILENT" or "FriendsList"
-                    Whorkaround:PrintWhoResult(name, level, class, area, false, mode)
+                    -- Online Ally
+                    Whorkaround:PrintWhoResult(name, level, class, area, false, "FriendsList")
+                    removingFriends[name] = GetTime(); RemoveFriend(name); pendingQueries[name] = nil
+                else
+                    -- Offline Ally
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
                     removingFriends[name] = GetTime(); RemoveFriend(name); pendingQueries[name] = nil
                 end
             end
         end
-    elseif event == "CHAT_MSG_SYSTEM" then
-        local msg = ...; if msg == ERR_FRIEND_NOT_FOUND then for name in pairs(pendingQueries) do if pendingQueries[name] ~= "TIMEOUT" then Whorkaround:TryAllOtherSources(name) end; pendingQueries[name] = nil end end
     end
 end)
 
 function Whorkaround:Query(name, silent)
     if not name or name == "" then return end
     name = name:gsub("^%s*(.-)%s*$", "%1"):lower():gsub("^%l", string.upper)
-    if pendingQueries[name] or networkWaiters[name] then return end -- Already querying
+    if pendingQueries[name] or networkWaiters[name] then return end 
     
-    -- Handle known enemies intelligently
     local playerFaction = UnitFactionGroup("player")
     local cachedData = Whorkaround_DB and Whorkaround_DB[name]
     local isEnemy = cachedData and cachedData.faction and cachedData.faction ~= playerFaction and cachedData.faction ~= "Unknown"
 
     if isEnemy and not silent then
-        -- REQUEST FIRST: Unless data is extremely fresh (< 3 mins), we always scan the network to ensure accuracy.
         local isFresh = cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 180)
-        
         if isFresh then
-            -- Data is super fresh, print it instantly.
             Whorkaround:PrintWhoResult(name, cachedData.level, cachedData.class, cachedData.zone, true, "Cache", cachedData.faction)
             return
         elseif Whorkaround.Request then
-            -- Data is stale or missing. Wait for the network.
-            local classColor = GetClassColorCode(cachedData.class, name)
-            local factionColor = (cachedData.faction == "Horde") and "|cffff2020" or "|cff0070dd"
-            local prefix = "|cff1abc9cWhorkaround:|r "
-            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, cachedData.faction), 1, 1, 0)
-            networkWaiters[name] = GetTime()
-            Whorkaround:Request(name)
+            Whorkaround:PrintWhoResult(name, 0, cachedData.class, "Unknown", false, "Manual", cachedData.faction)
             return
         end
     end
 
-    -- Check if they are already a real friend
     for i = 1, GetNumFriends() do
-        local fName, level, class, area, connected = GetFriendInfo(i)
-        if fName == name then 
-            if not silent then Whorkaround:PrintWhoResult(fName, level, class, area, false, "FriendsList") end
-            return 
-        end
+        local fName = GetFriendInfo(i)
+        if fName == name then if not silent then Whorkaround:PrintWhoResult(fName, nil, nil, nil, false, "FriendsList") end; return end
     end
-    
-    pendingQueries[name] = silent and "SILENT" or GetTime()
-    addedSuppression[name] = GetTime()
-    AddFriend(name)
-    ShowFriends() 
+    pendingQueries[name] = silent and "SILENT" or GetTime(); addedSuppression[name] = GetTime(); AddFriend(name); ShowFriends() 
 end
 
-local function GetFocusedEditBox()
-    for i = 1, 10 do local eb = _G["ChatFrame"..i.."EditBox"]; if eb and eb:HasFocus() then return eb end end
-    if ChatFrameEditBox and ChatFrameEditBox:HasFocus() then return ChatFrameEditBox end
-end
-
--- Smarter Case-Insensitive Chat Link Filter
-local function ChatLinkFilter(self, event, msg, ...)
-    if type(msg) == "string" and (msg:find("%[") or msg:find("@")) then
-        msg = msg:gsub("(|H.-|h.-|h)", function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
-        
-        local function ReplacementFunc(name)
-            local cleanName = name:lower():gsub("^%l", string.upper)
-            local data = Whorkaround_DB and Whorkaround_DB[cleanName]
-            local color = GetClassColorCode(data and data.class, cleanName)
-            return string.format("|Hplayer:%s|h[|r%s%s|r]|h", cleanName, color, cleanName)
-        end
-        
-        msg = msg:gsub("%[([%a]+)%]", ReplacementFunc)
-        msg = msg:gsub("@([%a]+)", ReplacementFunc)
-        msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
-        return false, msg, ...
-    end
-end
-local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE" }
-for _, event in ipairs(chatEvents) do ChatFrame_AddMessageEventFilter(event, ChatLinkFilter) end
-
--- Proactive Background Query while typing
 local function OnEditBoxTextChanged(self)
     local text = self:GetText()
     if not text then return end
@@ -356,74 +329,75 @@ local function OnEditBoxTextChanged(self)
         local cleanName = name:lower():gsub("^%l", string.upper)
         local data = Whorkaround_DB and Whorkaround_DB[cleanName]
         local isEnemy = data and data.faction and data.faction ~= UnitFactionGroup("player")
-        local timeout = isEnemy and 86400 or 3600
-        if not data or (time() - (data.lastSeen or 0) > timeout) then Whorkaround:Query(cleanName, true) end
+        if not data or (time() - (data.lastSeen or 0) > 3600) then Whorkaround:Query(cleanName, true) end
     end
     for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
     for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
 end
 
--- Save native handlers
-local nativeWho = SlashCmdList["WHO"]
-
+-- Tooltip Handling for (Live) and (Cached)
 local function HookChat()
     local orig = ChatFrame_OnHyperlinkShow
     ChatFrame_OnHyperlinkShow = function(...)
         local link, text, button; local arg1 = ...
         if type(arg1) == "table" then _, link, text, button = ... else link, text, button = ... end
-        local focus = GetFocusedEditBox()
-        if type(link) == "string" and link:sub(1, 7) == "player:" then
-            local name = link:match("player:([^:]+)")
-            if name then
-                if IsShiftKeyDown() then
-                    if focus then
-                        Whorkaround:Query(name, true)
-                        focus:Insert(string.format("[%s]", name))
-                    else
-                        Whorkaround:Query(name)
-                    end
-                    return
-                elseif button == "RightButton" then FriendsFrame_ShowDropdown(name, 1); return end
+        if type(link) == "string" then
+            if link == "whork:live" then
+                GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+                GameTooltip:SetText("|cff00ff00Live Data|r")
+                GameTooltip:AddLine("Information gathered from the network < 3 mins ago. Considered highly accurate.", 1, 1, 1, true)
+                GameTooltip:Show()
+                return
+            elseif link == "whork:cached" then
+                GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+                GameTooltip:SetText("|cffffd100Cached Data|r")
+                GameTooltip:AddLine("Information retrieved from a community member's historical database.", 1, 1, 1, true)
+                GameTooltip:Show()
+                return
+            elseif link:sub(1, 7) == "player:" then
+                local name = link:match("player:([^:]+)")
+                if name then
+                    if IsShiftKeyDown() then
+                        local eb = GetFocusedEditBox()
+                        if eb then Whorkaround:Query(name, true); eb:Insert(string.format("[%s]", name))
+                        else Whorkaround:Query(name) end
+                        return
+                    elseif button == "RightButton" then FriendsFrame_ShowDropdown(name, 1); return end
+                end
             end
         end
         return orig(...)
     end
     for i = 1, 10 do local eb = _G["ChatFrame"..i.."EditBox"]; if eb then eb:HookScript("OnTextChanged", OnEditBoxTextChanged) end end
-    if ChatFrameEditBox then ChatFrameEditBox:HookScript("OnTextChanged", OnEditBoxTextChanged) end
 end
 HookChat()
+
+-- Case-Insensitive Chat Link Filter
+local function ChatLinkFilter(self, event, msg, ...)
+    if type(msg) == "string" and (msg:find("%[") or msg:find("@")) then
+        msg = msg:gsub("(|H.-|h.-|h)", function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
+        local function ReplacementFunc(name)
+            local cleanName = name:lower():gsub("^%l", string.upper)
+            local data = Whorkaround_DB and Whorkaround_DB[cleanName]
+            local color = GetClassColorCode(data and data.class, cleanName)
+            return string.format("|Hplayer:%s|h[|r%s%s|r]|h", cleanName, color, cleanName)
+        end
+        msg = msg:gsub("%[([%a]+)%]", ReplacementFunc):gsub("@([%a]+)", ReplacementFunc)
+        msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
+        return false, msg, ...
+    end
+end
+local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE" }
+for _, event in ipairs(chatEvents) do ChatFrame_AddMessageEventFilter(event, ChatLinkFilter) end
 
 SLASH_WHORK1 = "/whork"; SLASH_WHORK2 = "/whorkaround"; SLASH_WHORK3 = "/whom"; SLASH_WHORK4 = "/who"; SLASH_WSTATS1 = "/whostats"; SLASH_WTOGGLE1 = "/whotoggle"; SLASH_WCLEAR1 = "/whocleardb"; SLASH_WDEBUG1 = "/whodebug"; SLASH_WTAB1 = "/whotab"
 
 SlashCmdList["WHORK"] = function(msg) Whorkaround:Query(msg) end
-SlashCmdList["WHO"] = function(msg)
-    if Whorkaround_Settings and Whorkaround_Settings.overrideWho then
-        Whorkaround:Query(msg)
-    elseif nativeWho then nativeWho(msg)
-    else SendWho(msg) end
-end
+SlashCmdList["WHO"] = function(msg) if Whorkaround_Settings and Whorkaround_Settings.overrideWho then Whorkaround:Query(msg) else SendWho(msg) end end
 SlashCmdList["WSTATS"] = function() Whorkaround:ShowStats() end
-SlashCmdList["WTOGGLE"] = function()
-    Whorkaround_Settings.overrideWho = not Whorkaround_Settings.overrideWho
-    local status = Whorkaround_Settings.overrideWho and "|cff00ff00Enabled|r" or "|cffff0000Disabled|r"
-    DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r /who override is now " .. status)
-end
-SlashCmdList["WCLEAR"] = function()
-    Whorkaround_DB = {}
-    DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Player database has been cleared.")
-end
-SlashCmdList["WDEBUG"] = function()
-    if Whorkaround.CheckComm then Whorkaround:CheckComm() 
-    else DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Comm module not loaded!") end
-end
-SlashCmdList["WTAB"] = function(msg)
-    if not msg or msg == "" then
-        Whorkaround_Settings.outputTab = nil
-        DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Output reset to default chat window.")
-    else
-        Whorkaround_Settings.outputTab = msg
-        DEFAULT_CHAT_FRAME:AddMessage("|cff1abc9cWhorkaround:|r Output redirected to tab: |cffffd100" .. msg .. "|r")
-    end
-end
+SlashCmdList["WTOGGLE"] = function() Whorkaround_Settings.overrideWho = not Whorkaround_Settings.overrideWho; print("|cff1abc9cWhorkaround:|r /who override is now " .. (Whorkaround_Settings.overrideWho and "|cff00ff00Enabled|r" or "|cffff0000Disabled|r")) end
+SlashCmdList["WCLEAR"] = function() Whorkaround_DB = {}; print("|cff1abc9cWhorkaround:|r Database cleared.") end
+SlashCmdList["WDEBUG"] = function() if Whorkaround.CheckComm then Whorkaround:CheckComm() end end
+SlashCmdList["WTAB"] = function(msg) Whorkaround_Settings.outputTab = (msg ~= "") and msg or nil; print("|cff1abc9cWhorkaround:|r Output tab set to " .. (msg or "Default")) end
 
-print("|cff1abc9cWhorkaround|r loaded. Use /whotab [TabName] to redirect output.")
+print("|cff1abc9cWhorkaround|r loaded.")

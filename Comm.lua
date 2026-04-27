@@ -89,28 +89,27 @@ frame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "CHAT_MSG_CHANNEL" then
         local msg, sender, lang, chNameWithID, sender2, flags, zoneID, chID, chName = ...
         if chName == CH_NAME and sender ~= UnitName("player") then
-            -- Handle Version Check
-            if msg:sub(1, #VERSION_PREFIX) == VERSION_PREFIX then
-                local remoteVersion = msg:sub(#VERSION_PREFIX + 1)
-                if not notifiedUpdate and IsNewerVersion(remoteVersion, currentVersion) then
-                    local prefix = "|cff1abc9cWhorkaround Update:|r "
-                    DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVersion .. "|r) is available!")
-                    DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Download here: |cff0070dd" .. GITHUB_URL .. "|r")
-                    notifiedUpdate = true
-                end
-            
             -- Handle Data Requests (WKR:)
-            elseif msg:sub(1, #REQ_PREFIX) == REQ_PREFIX then
+            if msg:sub(1, #REQ_PREFIX) == REQ_PREFIX then
                 local targetName = msg:sub(#REQ_PREFIX + 1)
+                
+                -- SELF-RESPONSE FEATURE:
+                -- If someone is looking for ME, I respond instantly with perfect data.
+                if targetName == UnitName("player") then
+                    local _, class = UnitClass("player")
+                    local race = UnitRace("player")
+                    local faction = (UnitFactionGroup("player") == "Alliance") and "Alliance" or "Horde"
+                    Whorkaround:Broadcast(targetName, UnitLevel("player"), class, GetRealZoneText(), faction, time())
+                    return
+                end
+
                 local data = Whorkaround_DB and Whorkaround_DB[targetName]
                 if data and data.level and data.level > 0 then
                     -- SENIORITY SUPPRESSION:
-                    -- Delay is based on data age. Newest data (fresh) replies first.
                     local age = time() - (data.lastSeen or 0)
                     local baseDelay = 0.5
-                    -- Age factor: 0.1s delay for every hour of age, capped at 4s
                     local ageFactor = math.min(4.0, (age / 3600) * 0.1)
-                    local randomBuffer = math.random() * 0.5 -- Small random buffer to split exact ties
+                    local randomBuffer = math.random() * 0.5
                     
                     if not scheduledResponses[targetName] then
                         scheduledResponses[targetName] = GetTime() + baseDelay + ageFactor + randomBuffer
@@ -147,7 +146,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                                 }
                                 -- If we were explicitly waiting for this name, trigger the UI update
                                 if Whorkaround.ResolveNetworkWait then
-                                    Whorkaround:ResolveNetworkWait(name, level, class, zone, faction)
+                                    Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, timestamp)
                                 end
                             end
                         end
@@ -187,7 +186,6 @@ function Whorkaround:CheckComm()
     if id and id > 0 then
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel active at index " .. id)
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Current Version: |cffffd100v" .. currentVersion .. "|r")
-        SendChatMessage(VERSION_PREFIX .. currentVersion, "CHANNEL", nil, id)
     else
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel NOT active. Attempting rejoin...")
         JoinCommChannel()
