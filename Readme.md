@@ -1,25 +1,26 @@
 # Whorkaround
 
-Whorkaround is `/who` workaround for Project Epoch where `/who` is disabled. It provides a way to identify players by gathering data from several different sources (Primarily Friends List) and building a persistent, account-wide database of the people you encounter.
+Whorkaround is a specialized utility for Project Epoch where the standard `/who` command is disabled. It provides a robust alternative for identifying players by gathering data from multiple sources and building a persistent, account-wide database of the players you encounter.
 
-### Features
+### Key Features
 
-- **Replacement /who**: Replaces the standard /who command with a custom query that uses the friends list to find a player's level, class, and location.
-- **Persistent Database**: Automatically saves information about every player it finds into a local database that is shared across all your characters.
-- **Smart Linking**: Allows you to link players in chat by simply typing their name in brackets, like `[Name]`. These links are class-colored and support standard left-click (whisper) and right-click (menu) behavior.
-- **Data Harvesting**: Piggybacks off your guild roster, ElvUI's player cache (if present), and nearby players to populate your database without needing to run manual queries.
-- **Crowdsourcing**: Shares information with other users of the addon through a hidden communication channel. This builds a shared knowledge base of the server's population in the background.
-- **Faction Detection**: Automatically identifies when a player belongs to the enemy faction.
-- **Silent Operation**: All background queries are handled quietly. System messages like "Added to friends list" are suppressed so they don't clutter your chat log.
+- **Replacement /who**: Replaces the standard `/who` command with a high-speed query system using the Friends List API to discover a player's level, class, and location.
+- **Interactive Network Search**: When you query an unknown enemy player, Whorkaround performs a real-time "Gossip Search" across the network. It asks other online users for data, allowing you to identify opposing faction members who aren't on your own lists.
+- **Gossip Protocol (Suppression)**: Uses an intelligent suppression algorithm to prevent network spam. When a data request is sent, only one user will typically respond, keeping the communication channel clean.
+- **Smart Linking & Mentions**: Link any player in chat by typing `[Name]` or `@Name`. The addon automatically colorizes the name by class, normalizes capitalization, and creates a fully functional, clickable player hyperlink.
+- **Persistent Database**: Automatically saves player data into a local, account-wide database. Includes "Last Seen" tracking so you know exactly how fresh the information is.
+- **Data Harvesting**: Automatically populates your database by piggybacking off your Guild Roster, nearby players, and even ElvUI's internal class caches (including persistent data from *ElvUI Enhanced*).
+- **Silent Operation**: All background queries and network activity are handled quietly. Annoying system messages like "Added to friends list" or "Joined channel" are suppressed to keep your chat log clean.
 
 ### Commands
 
-- `/who Name` or `/whom Name` - Performs a query for the specified player.
-- `/whostats` - Displays a breakdown of your current database, including total players found and their sources.
-- `/whotoggle` - Toggles the automatic `/who` override on or off.
+- `/who Name` or `/whom Name` - Performs a manual query for a player.
+- `/whotab [TabName]` - Redirects all Whorkaround output to a specific chat tab (e.g., `/whotab Queries`). Type without a name to reset to the default window.
+- `/whostats` - Displays a breakdown of your database, including total players found and their sources (Guild, Manual, Network, etc.).
+- `/whotoggle` - Toggles the automatic override of the standard `/who` command.
 - `/whocleardb` - Wipes your local player database and starts fresh.
-- `/whotab [TabName]` - Redirects addon output to a specific chat tab (e.g., `/whotab Queries`). Leave blank to reset to default.
+- `/whodebug` - Verifies your connection to the WhorkComm network and broadcasts your current version.
 
 ### Compatibility
 
-Designed specifically for Project Epoch and similar "Vanilla-plus" environments running on the 3.3.5 client. It respects the level 60 cap and only recognizes the original nine classes.
+Designed specifically for Project Epoch and the 3.3.5 client. It respects the Vanilla class/level caps and is fully compatible with ElvUI and ElvUI Enhanced.

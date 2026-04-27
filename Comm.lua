@@ -4,9 +4,13 @@ local CH_NAME = "WhorkComm"
 local CH_ID = nil
 local MSG_PREFIX = "WK:" 
 local VERSION_PREFIX = "WKV:"
+local REQ_PREFIX = "WKR:"
 local GITHUB_URL = "https://github.com/ZythDr/Whorkaround"
 local currentVersion = GetAddOnMetadata(addonName, "Version") or "1.0"
 local notifiedUpdate = false
+
+local scheduledResponses = {}
+local recentRequests = {}
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -21,7 +25,7 @@ local validClasses = {
 }
 local validFactions = { ["Alliance"] = true, ["Horde"] = true }
 
--- Version comparison (e.g., "1.1.2" vs "1.2.0")
+-- Version comparison
 local function IsNewerVersion(newVer, oldVer)
     local newParts = {string.match(newVer, "(%d+)%.?(%d*)%.?(%d*)")}
     local oldParts = {string.match(oldVer, "(%d+)%.?(%d*)%.?(%d*)")}
@@ -36,11 +40,7 @@ end
 
 local function JoinCommChannel()
     local id, name = GetChannelName(CH_NAME)
-    if id and id > 0 then 
-        CH_ID = id
-        return 
-    end
-    
+    if id and id > 0 then CH_ID = id; return end
     JoinChannelByName(CH_NAME)
     
     local t = 0
@@ -51,12 +51,10 @@ local function JoinCommChannel()
             local newId = GetChannelName(CH_NAME)
             if newId and newId > 0 then
                 CH_ID = newId
-                -- Hide channel from chat frames
                 for i = 1, 10 do
                     local cf = _G["ChatFrame"..i]
                     if cf then ChatFrame_RemoveChannel(cf, CH_NAME) end
                 end
-                -- Broadcast current version once joined
                 SendChatMessage(VERSION_PREFIX .. currentVersion, "CHANNEL", nil, CH_ID)
                 self:SetScript("OnUpdate", nil)
             end
@@ -69,6 +67,18 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     if joinTimer > 0 then
         joinTimer = joinTimer - elapsed
         if joinTimer <= 0 then JoinCommChannel() end
+    end
+
+    -- Process scheduled responses (Suppression logic)
+    local now = GetTime()
+    for name, sendTime in pairs(scheduledResponses) do
+        if now >= sendTime then
+            local data = Whorkaround_DB and Whorkaround_DB[name]
+            if data and data.level and data.level > 0 then
+                Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction)
+            end
+            scheduledResponses[name] = nil
+        end
     end
 end)
 
@@ -89,10 +99,26 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Download here: |cff0070dd" .. GITHUB_URL .. "|r")
                     notifiedUpdate = true
                 end
-            -- Handle Data Broadcasts
+            
+            -- Handle Data Requests (WKR:)
+            elseif msg:sub(1, #REQ_PREFIX) == REQ_PREFIX then
+                local targetName = msg:sub(#REQ_PREFIX + 1)
+                local data = Whorkaround_DB and Whorkaround_DB[targetName]
+                if data and data.level and data.level > 0 then
+                    -- Schedule a response with random delay (0.5 to 2.5s) to avoid storms
+                    if not scheduledResponses[targetName] then
+                        scheduledResponses[targetName] = GetTime() + 0.5 + (math.random() * 2.0)
+                    end
+                end
+
+            -- Handle Data Broadcasts (WK:)
             elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
                 local data = msg:sub(#MSG_PREFIX + 1)
                 local name, level, class, zone, faction = data:match("^(.-):(%d+):(.-):(.-):(.-)$")
+                
+                -- Suppression: If we hear someone else answer a request, cancel our own schedule
+                if name then scheduledResponses[name] = nil end
+
                 if name and name:len() <= 12 and name:match("^[%a]+$") then
                     level = tonumber(level)
                     class = (class or ""):upper()
@@ -117,6 +143,16 @@ function Whorkaround:Broadcast(name, level, class, zone, faction)
         class = (class or "Unknown"):upper()
         local msg = string.format("%s%s:%d:%s:%s:%s", MSG_PREFIX, name, level, class, zone or "Unknown", faction or "Unknown")
         SendChatMessage(msg, "CHANNEL", nil, id)
+    end
+end
+
+function Whorkaround:Request(name)
+    local id = GetChannelName(CH_NAME)
+    if id and id > 0 then
+        -- Don't request the same name more than once every 10 minutes locally
+        if recentRequests[name] and (GetTime() - recentRequests[name] < 600) then return end
+        recentRequests[name] = GetTime()
+        SendChatMessage(REQ_PREFIX .. name, "CHANNEL", nil, id)
     end
 end
 

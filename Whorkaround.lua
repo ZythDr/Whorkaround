@@ -3,6 +3,7 @@ local addonName, Whorkaround = ...
 local pendingQueries = {}
 local removingFriends = {}
 local addedSuppression = {}
+local networkWaiters = {} -- Names we are currently waiting for network responses on
 
 -- Class lookup table for 3.3.5 (Project Epoch: No Death Knights)
 local localizedClassMap = {
@@ -94,7 +95,7 @@ local function GetRelativeTime(timestamp)
 end
 
 -- Function to print the "Who" result
-local function PrintWhoResult(name, level, class, area, cached, source, faction)
+function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, faction)
     local playerFaction = UnitFactionGroup("player")
     local enemyFaction = (playerFaction == "Alliance") and "Horde" or "Alliance"
     local prefix = "|cff1abc9cWhorkaround:|r "
@@ -118,16 +119,32 @@ local function PrintWhoResult(name, level, class, area, cached, source, faction)
     local timeText = (cached and cachedData and cachedData.lastSeen) and string.format(" |cff888888(Seen %s)|r", GetRelativeTime(cachedData.lastSeen)) or ""
     
     if level == 0 then
-        -- Handle detected enemies with cached data
+        -- Trigger network request if we don't have full info and this wasn't a silent check
+        if Whorkaround.Request and (not cachedData or not cachedData.level or cachedData.level == 0) then
+            if source ~= "SILENT" and source ~= "TIMEOUT" and not networkWaiters[name] then
+                -- PHRASING: "Name identified as enemy. Scanning network..."
+                local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
+                GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
+                networkWaiters[name] = GetTime()
+                Whorkaround:Request(name)
+                return -- Wait for network or timeout
+            end
+        end
+
+        -- Handle detected enemies (Fallback or Cached)
         local cLevel = (cachedData and cachedData.level and cachedData.level > 0) and string.format("Level %d ", cachedData.level) or ""
         local classText = (class and class ~= "Unknown") and string.format("%s%s|r ", classColor, class) or ""
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s%s (Enemy)%s", prefix, name, classColor, name, cLevel, classText, faction, timeText)
+        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s%s (Enemy detected)%s", prefix, name, classColor, name, cLevel, classText, faction, timeText)
     else
         level = level or 0; area = area or "Unknown"; class = class or "Unknown"
         local levelColor = (level == 60) and "|cffffd100" or "|cffffffff"
         local status = cached and string.format("|cff888888- Offline (Cached)%s|r", timeText) or string.format("- %s", area)
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %s%d|r %s%s|r %s", prefix, name, classColor, name, levelColor, level, classColor, class, status)
+        local sourceText = (source == "WhorkComm") and " |cff888888(Network discovery)|r" or ""
+        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %s%d|r %s%s|r %s%s", prefix, name, classColor, name, levelColor, level, classColor, class, status, sourceText)
     end
+
+    -- Clear network wait state once we actually print a result
+    networkWaiters[name] = nil
 
     if Whorkaround_DB then
         Whorkaround_DB[name] = { 
@@ -148,14 +165,13 @@ end
 function Whorkaround:TryAllOtherSources(name, silent)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(name)
     if gLevel and gLevel > 0 then
-        if not silent then PrintWhoResult(name, gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) end
+        if not silent then Whorkaround:PrintWhoResult(name, gLevel, gClass, gZone, false, "GuildRoster", UnitFactionGroup("player")) end
         return true
     end
     
     local data = Whorkaround_DB and Whorkaround_DB[name]
     if data and data.class then
-        -- We return true if we have ANY data now, even if it's just class from ElvUI
-        if not silent then PrintWhoResult(name, data.level or 0, data.class, data.zone or "Unknown", true, data.source, data.faction) end
+        if not silent then Whorkaround:PrintWhoResult(name, data.level or 0, data.class, data.zone or "Unknown", true, data.source, data.faction) end
         return true
     end
     return false
@@ -218,6 +234,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 if diff > 5 then pendingQueries[name] = nil; addedSuppression[name] = nil; removingFriends[name] = nil end
             end
         end
+
+        -- Handle Network Waiters (Timeout after 4.0s)
+        for name, waitTime in pairs(networkWaiters) do
+            if now - waitTime > 4.0 then
+                -- AVOID LOOP: We must clear the waiter BEFORE calling the fallback
+                networkWaiters[name] = nil
+                local data = Whorkaround_DB and Whorkaround_DB[name]
+                Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", true, "TIMEOUT", data and data.faction)
+            end
+        end
     end
 end)
 
@@ -233,7 +259,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local name, level, class, area, connected = GetFriendInfo(i)
             if name and pendingQueries[name] and pendingQueries[name] ~= "TIMEOUT" then
                 if connected then
-                    if pendingQueries[name] ~= "SILENT" then PrintWhoResult(name, level, class, area, false, "FriendsList") end
+                    local mode = (pendingQueries[name] == "SILENT") and "SILENT" or "FriendsList"
+                    Whorkaround:PrintWhoResult(name, level, class, area, false, mode)
                     removingFriends[name] = GetTime(); RemoveFriend(name); pendingQueries[name] = nil
                 end
             end
@@ -252,7 +279,7 @@ function Whorkaround:Query(name, silent)
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
         if fName == name then 
-            if not silent then PrintWhoResult(fName, level, class, area, false, "FriendsList") end
+            if not silent then Whorkaround:PrintWhoResult(fName, level, class, area, false, "FriendsList") end
             return 
         end
     end
@@ -274,11 +301,9 @@ local function ChatLinkFilter(self, event, msg, ...)
         msg = msg:gsub("(|H.-|h.-|h)", function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
         
         local function ReplacementFunc(name)
-            -- Normalize name: First letter Upper, rest Lower (e.g., zythdr -> Zythdr)
             local cleanName = name:lower():gsub("^%l", string.upper)
             local data = Whorkaround_DB and Whorkaround_DB[cleanName]
             local color = GetClassColorCode(data and data.class, cleanName)
-            -- Replace with properly capitalized link and [Name] format
             return string.format("|Hplayer:%s|h[|r%s%s|r]|h", cleanName, color, cleanName)
         end
         
@@ -296,10 +321,8 @@ local function OnEditBoxTextChanged(self)
     local text = self:GetText()
     if not text then return end
     local function TriggerQuery(name)
-        -- Normalize name for background query as well
         local cleanName = name:lower():gsub("^%l", string.upper)
         local data = Whorkaround_DB and Whorkaround_DB[cleanName]
-        -- Relaxed rule for enemies: If we know they are Horde/Alliance, only query if VERY stale (24h)
         local isEnemy = data and data.faction and data.faction ~= UnitFactionGroup("player")
         local timeout = isEnemy and 86400 or 3600
         if not data or (time() - (data.lastSeen or 0) > timeout) then Whorkaround:Query(cleanName, true) end
