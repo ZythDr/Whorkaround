@@ -119,22 +119,22 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
     local timeText = (cached and cachedData and cachedData.lastSeen) and string.format(" |cff888888(Seen %s)|r", GetRelativeTime(cachedData.lastSeen)) or ""
     
     if level == 0 then
-        -- Trigger network request if we don't have full info and this wasn't a silent check
-        if Whorkaround.Request and (not cachedData or not cachedData.level or cachedData.level == 0) then
-            if source ~= "SILENT" and source ~= "TIMEOUT" and not networkWaiters[name] then
-                -- PHRASING: "Name identified as enemy. Scanning network..."
-                local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
-                GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
-                networkWaiters[name] = GetTime()
-                Whorkaround:Request(name)
-                return -- Wait for network or timeout
-            end
+        -- FORCE NETWORK REQUEST FOR ENEMIES (unless already responding or silent)
+        if Whorkaround.Request and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "WhorkComm" and not networkWaiters[name] then
+            local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
+            GetOutputFrame():AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h identified as %s%s|r. Scanning network...", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
+            networkWaiters[name] = GetTime()
+            Whorkaround:Request(name)
+            return -- Wait for network discovery
         end
 
-        -- Handle detected enemies (Fallback or Cached)
+        -- Handle detected enemies (Fallback to Cache or Network Response)
         local cLevel = (cachedData and cachedData.level and cachedData.level > 0) and string.format("Level %d ", cachedData.level) or ""
         local classText = (class and class ~= "Unknown") and string.format("%s%s|r ", classColor, class) or ""
-        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Likely %s%s%s (Enemy detected)%s", prefix, name, classColor, name, cLevel, classText, faction, timeText)
+        local factionText = (cLevel == "" and classText == "") and faction or faction
+        local netDiscovery = (source == "WhorkComm") and " |cff888888(Network discovery)|r" or ""
+        
+        msg = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s%s%s%s", prefix, name, classColor, name, cLevel, classText, faction, timeText, netDiscovery)
     else
         level = level or 0; area = area or "Unknown"; class = class or "Unknown"
         local levelColor = (level == 60) and "|cffffd100" or "|cffffffff"
