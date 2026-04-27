@@ -51,10 +51,6 @@ local function JoinCommChannel()
             local newId = GetChannelName(CH_NAME)
             if newId and newId > 0 then
                 CH_ID = newId
-                for i = 1, 10 do
-                    local cf = _G["ChatFrame"..i]
-                    if cf then ChatFrame_RemoveChannel(cf, CH_NAME) end
-                end
                 self:SetScript("OnUpdate", nil)
             end
         end

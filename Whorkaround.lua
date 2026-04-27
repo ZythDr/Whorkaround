@@ -216,7 +216,7 @@ end
 -- Statistics Command
 function Whorkaround:ShowStats()
     if not Whorkaround_DB then return end
-    local total, sources, factions = 0, { FriendsList = 0, GuildRoster = 0, ElvUI = 0, ElvUI_Enhanced = 0, WhorkComm = 0, Cache = 0 }, { Alliance = 0, Horde = 0, Unknown = 0 }
+    local total, sources, factions = 0, { FriendsList = 0, GuildRoster = 0, ElvUI = 0, ElvUI_Enhanced = 0, WhorkComm = 0, Cache = 0, Sighting = 0 }, { Alliance = 0, Horde = 0, Unknown = 0 }
     for name, data in pairs(Whorkaround_DB) do
         if type(data) == "table" then
             total = total + 1
@@ -228,7 +228,36 @@ function Whorkaround:ShowStats()
     output:AddMessage("|cff1abc9cWhorkaround Stats:|r")
     output:AddMessage(string.format("- Total Cached Players: |cffffd100%d|r", total))
     output:AddMessage(string.format("- Factions: Alliance (|cff0070dd%d|r), Horde (|cffff2020%d|r)", factions.Alliance or 0, factions.Horde or 0))
-    output:AddMessage("- Sources: Manual: "..sources.FriendsList..", Guild: "..sources.GuildRoster..", ElvUI: "..sources.ElvUI..", Comm: "..sources.WhorkComm)
+    output:AddMessage("- Sources: Manual: "..sources.FriendsList..", Guild: "..sources.GuildRoster..", Sightings: "..sources.Sighting..", Comm: "..sources.WhorkComm)
+end
+
+-- Passive Data Collection (Sightings)
+local sightingThrottle = {}
+function Whorkaround:Sighting(unit)
+    if not unit or not UnitIsPlayer(unit) then return end
+    local name = UnitName(unit)
+    if not name or name == "Unknown" or name == UnitName("player") then return end
+    
+    local now = GetTime()
+    if sightingThrottle[name] and now - sightingThrottle[name] < 10 then return end
+    sightingThrottle[name] = now
+    
+    local level = UnitLevel(unit)
+    local _, class = UnitClass(unit)
+    local race = UnitRace(unit)
+    local faction = raceFactionMap[race] or UnitFactionGroup(unit)
+    local zone = GetRealZoneText()
+    
+    if Whorkaround_DB then
+        Whorkaround_DB[name] = {
+            class = class,
+            level = (level > 0) and level or (Whorkaround_DB[name] and Whorkaround_DB[name].level),
+            zone = zone,
+            faction = faction,
+            lastSeen = time(),
+            source = "Sighting"
+        }
+    end
 end
 
 -- System Message Filter
@@ -258,6 +287,7 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
 -- Event handling
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("FRIENDLIST_UPDATE"); frame:RegisterEvent("CHAT_MSG_SYSTEM"); frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT"); frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 frame:SetScript("OnUpdate", function(self, elapsed)
     self.timer = (self.timer or 0) + elapsed
     if self.timer > 0.1 then
@@ -284,7 +314,11 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "ADDON_LOADED" then
+    if event == "UPDATE_MOUSEOVER_UNIT" then
+        Whorkaround:Sighting("mouseover")
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        Whorkaround:Sighting("target")
+    elseif event == "ADDON_LOADED" then
         local name = ...; if name == "Whorkaround" then 
             Whorkaround_DB = Whorkaround_DB or {}
             Whorkaround_Settings = Whorkaround_Settings or { overrideWho = true, outputTab = nil }
