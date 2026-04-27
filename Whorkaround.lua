@@ -335,6 +335,16 @@ local function OnEditBoxTextChanged(self)
     for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
 end
 
+local function GetFocusedEditBox()
+    for i = 1, 10 do
+        local eb = _G["ChatFrame"..i.."EditBox"]
+        if eb and eb:IsVisible() and eb:HasFocus() then return eb end
+    end
+    -- ElvUI or other custom editboxes
+    local focus = GetCurrentKeyBoardFocus()
+    if focus and focus:IsObjectType("EditBox") then return focus end
+end
+
 -- Tooltip Handling for (Live) and (Cached)
 local function HookChat()
     local orig = ChatFrame_OnHyperlinkShow
