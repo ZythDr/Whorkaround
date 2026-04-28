@@ -153,7 +153,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 
                 if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not hasFreshCache then
                     Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
-                    local proxyDelay = 0.1 + (math.random() * 0.4) -- Snappier proxy start
+                    local proxyDelay = 0.1 + (math.random() * 0.7) -- Restored stable proxy timing
                     scheduledProxy[cleanName] = GetTime() + proxyDelay
                     
                     -- If we had a cached response scheduled, cancel it if we are doing a proxy
@@ -170,10 +170,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local canBroadcast = not (Whorkaround.broadcastThrottle and Whorkaround.broadcastThrottle[cleanName]) or (now - (Whorkaround.broadcastThrottle[cleanName] or 0) > 1)
                     if not canBroadcast then return end
 
-                    -- Cache delay starts AFTER the proxy window (approx 1s)
-                    local baseDelay = 1.2 + (isFresh and 0 or 1.0)
-                    local ageFactor = (age / 86400) * 0.3
-                    local randomBuffer = math.random() * 1.5
+                    -- Cache delay starts AFTER the proxy window (approx 1.5s)
+                    local baseDelay = 2.0 + (isFresh and 0 or 1.5) -- Restored stable cache base
+                    local ageFactor = (age / 86400) * 0.5
+                    local randomBuffer = math.random() * 2.0
                     
                     if not scheduledResponses[cleanName] then
                         Whorkaround:Log("Scheduling cached response for: " .. targetName, "NETWORK")
