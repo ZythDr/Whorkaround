@@ -170,18 +170,33 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
         if level == 0 then faction = enemyFaction else faction = playerFaction end
     end
 
+    local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+    local displayName = name:gsub("^%l", string.upper)
     local classColor = GetClassColorCode(class, name)
+    local timestamp = timestamp or time()
     local isLive = (time() - timestamp < 10)
+    local playerFaction = UnitFactionGroup("player")
+    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
+
+    if Whorkaround.RemovingFriend then
+        if Whorkaround:RemovingFriend(cleanName) then return end
+    end
+
+    -- DEDUPLICATION: Prevent double-prints within 100ms
+    Whorkaround.lastPrint = Whorkaround.lastPrint or {}
+    local now = GetTime()
+    if Whorkaround.lastPrint[cleanName] and (now - Whorkaround.lastPrint[cleanName] < 0.1) then return end
+    Whorkaround.lastPrint[cleanName] = now
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - timestamp < 10)
             if not isFresh then
-                local statusMsg = (level == 0) and "identified as " .. faction or "appears to be offline"
+                local statusMsg = (level == 0) and "identified as " .. (faction or "Unknown") or "appears to be offline"
                 for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor, name, statusMsg), 1, 1, 0)
+                    frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor, displayName, statusMsg), 1, 1, 0)
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
@@ -198,7 +213,6 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
         local displayLevel = (level and level > 0 and level <= 60) and level or (cachedData and cachedData.level)
         local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
         local displayFaction = faction or cachedData.faction or "Unknown"
-        local displayName = name:gsub("^%l", string.upper)
         local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
 
         if source == "Whorkaround" or source == "TIMEOUT" then
@@ -216,13 +230,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
             end
         end
     else
-        if source == "TIMEOUT" then
+        if source == "TIMEOUT" or source == "Manual" then
             local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
             local failMsg = "No community data was found."
             if faction == playerFaction then failMsg = "User is offline and no community data was found." end
 
             for _, frame in ipairs(GetOutputFrames()) do
-                frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s|r", prefix, name, classColor, name, factionColor, faction), 1, 1, 0)
+                frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s|r", prefix, name, classColor, displayName, factionColor, faction or "Unknown"), 1, 1, 0)
                 frame:AddMessage(prefix .. failMsg, 1, 1, 0)
             end
         end
@@ -507,6 +521,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         for i = 1, GetNumFriends() do
             local name, level, class, area, connected, _, note = GetFriendInfo(i)
             if name then
+                local displayName = name:gsub("^%l", string.upper)
                 local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
                 if Whorkaround.pendingQueries[cleanName] and not processed[cleanName] then
                     -- Don't request the same name more than once every 5 minutes globally

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.10] - 2026-04-28
+
+### Changed
+- Responsive Networking: Lowered the global request throttle to 30 seconds, making manual scans much more reliable when multiple users are querying the same player.
+
+### Fixed
+- Universal Title-Casing: Enforced proper name capitalization across all output paths in the chat window, including faction fallback messages.
+- Network Request Debugging: Added debug logging for throttled requests to provide better visibility during troubleshooting.
+
 ## [1.4.9] - 2026-04-28
 
 ### Fixed

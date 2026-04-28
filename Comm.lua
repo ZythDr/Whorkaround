@@ -259,9 +259,12 @@ function Whorkaround:Request(name, factionTag)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
-        -- Don't request the same name more than once every 5 minutes globally
+        -- Don't request the same name more than once every 30 seconds globally
         Whorkaround.recentRequests = Whorkaround.recentRequests or {}
-        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 300) then return end
+        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 30) then 
+            Whorkaround:Log("Request for " .. name .. " suppressed by global throttle.", "NETWORK")
+            return 
+        end
         Whorkaround.recentRequests[cleanName] = GetTime()
         
         -- Default to 'U' (Unknown) only if no tag provided, but we aim for A/H
