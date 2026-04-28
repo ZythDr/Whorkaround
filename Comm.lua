@@ -73,7 +73,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             if data and data.level and data.level > 0 then
                 local isLocal = (data.source == "FriendsList" or data.source == "Manual" or data.source == "Sighting")
                 if isLocal then
-                    Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false)
+                    Whorkaround:Log("Broadcasting cached data for " .. name .. " (Timeout phase)", "NETWORK")
+                    Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK")
                 end
             end
             scheduledResponses[name] = nil
@@ -136,7 +137,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                         onList = true
                         if connected then
                             Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
-                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
+                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true, "NORMAL")
                             return -- Online friend handled instantly
                         end
                         break
@@ -283,7 +284,7 @@ function Whorkaround:CancelScheduledResponse(name)
     end
 end
 
-function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy)
+function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy, priorityOverride)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
@@ -299,8 +300,8 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
         local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, class, zone or "Unknown", f, timestamp, p)
         
         if _G.ChatThrottleLib then
-            -- Use NORMAL priority for proxy/fresh results so they win against BULK cached results
-            local priority = (isProxy or timestamp > (time() - 10)) and "NORMAL" or "BULK"
+            -- Default priority logic if no override: Live/Fresh = NORMAL, Stale = BULK
+            local priority = priorityOverride or ((isProxy or timestamp > (time() - 10)) and "NORMAL" or "BULK")
             _G.ChatThrottleLib:SendChatMessage(priority, "Whork", msg, "CHANNEL", nil, id)
         else
             SendChatMessage(msg, "CHANNEL", nil, id)

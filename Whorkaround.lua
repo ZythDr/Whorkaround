@@ -276,7 +276,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting")
     if isLocal and canBroadcast and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
         Whorkaround:Log("Broadcasting local data for " .. name, "NETWORK")
-        Whorkaround:Broadcast(name, level, class, area, faction, timestamp)
+        Whorkaround:Broadcast(name, level, class, area, faction, timestamp, false, "NORMAL")
     end
 
     -- Compatibility: Set flag to fire a fake Who event to stop other addons (like ElvUI) from retrying
