@@ -244,9 +244,14 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
 
     local now = GetTime()
     local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 60)
-    if canBroadcast and (not cached or source == "FriendsList" or source == "Manual") and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
+
+    -- BROADCAST RULES: 
+    -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting)
+    -- 2. Only if not recently broadcasted
+    local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting")
+    if isLocal and canBroadcast and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
         Whorkaround.broadcastThrottle[cleanName] = now
-        Whorkaround:Log("Broadcasting live data for " .. name, "NETWORK")
+        Whorkaround:Log("Broadcasting local data for " .. name, "NETWORK")
         Whorkaround:Broadcast(name, level, class, area, faction, timestamp)
     end
 
@@ -410,8 +415,9 @@ local function SystemMessageFilter(self, event, msg)
     if chLeft and (chLeft:find("WhorkComm") or chLeft:find("1. WhorkComm")) then return true end
     if msg == ERR_FRIEND_NOT_FOUND then
         for name, startTime in pairs(Whorkaround.pendingQueries) do
-            if type(startTime) == "number" and GetTime() - startTime < 2 then
-                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
+            local elapsed = GetTime() - (type(startTime) == "number" and startTime or GetTime())
+            if (type(startTime) == "number" or startTime == "PROXY") and (elapsed < 2 or startTime == "PROXY") then
+                if startTime ~= "PROXY" then Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual") end
                 Whorkaround.pendingQueries[name] = nil
                 return true
             end
@@ -503,6 +509,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if name then
                 local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
                 if Whorkaround.pendingQueries[cleanName] and not processed[cleanName] then
+                    -- Don't request the same name more than once every 5 minutes globally
+                    Whorkaround.recentRequests = Whorkaround.recentRequests or {}
+                    if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 300) then return end
+                    Whorkaround.recentRequests[cleanName] = GetTime()
                     processed[cleanName] = true
                     if not note or note == "" then 
                         Whorkaround:Log("Tagging friend: " .. name, "LOCAL")

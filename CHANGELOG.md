@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.8] - 2026-04-28
+
+### Changed
+- Proxy Response Speed: Reduced the delay for proxy lookups to 0.2s-1.2s for a snappier network feel.
+- Broadcast Etiquette: Implemented a strict anti-echo policy where incoming network data throttles local broadcasts for that target, preventing chain-reaction duplicates.
+- Strict Local Broadcasting: The addon will now only initiate a broadcast if the data was collected from a local source (Friends List, Sighting, etc.).
+
+## [1.4.7] - 2026-04-28
+
+### Fixed
+- System Spam: Fixed "Player not found" error messages leaking into chat during background proxy lookups.
+- Network Deduplication: Implemented global request tracking to prevent redundant WKR messages if another user has already requested the same target.
+- Broadcast Rules: Tightened rules to prevent immediate re-broadcasting of data just received from the network.
+
 ## [1.4.6] - 2026-04-28
 
 ### Fixed

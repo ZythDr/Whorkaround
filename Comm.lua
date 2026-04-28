@@ -141,10 +141,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     
                     if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not scheduledResponses[cleanName] then
                         Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
-                        local proxyDelay = 0.5 + (math.random() * 2.0)
+                        local proxyDelay = 0.2 + (math.random() * 1.0)
                         scheduledProxy[cleanName] = GetTime() + proxyDelay
                     end
                 end
+                
+                -- Global request tracking: Record that a request was sent (by anyone)
+                Whorkaround.recentRequests = Whorkaround.recentRequests or {}
+                Whorkaround.recentRequests[cleanName] = GetTime()
 
             -- Handle Data Broadcasts (WK:)
             elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
@@ -182,6 +186,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local myData = Whorkaround_DB and Whorkaround_DB[cleanName]
                     local myTime = myData and myData.lastSeen or 0
 
+                    -- Anti-Echo: If we just heard data from the network, don't broadcast it ourselves for a while
+                    Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
+                    Whorkaround.broadcastThrottle[cleanName] = GetTime()
+                    
                     if scheduledProxy[cleanName] then
                         -- We have a live lookup pending. Only cancel if they also have live data.
                         if otherIsLive then scheduledProxy[cleanName] = nil end
@@ -251,9 +259,10 @@ function Whorkaround:Request(name, factionTag)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
-        -- Don't request the same name more than once every 10 minutes locally
-        if recentRequests[cleanName] and (GetTime() - recentRequests[cleanName] < 600) then return end
-        recentRequests[cleanName] = GetTime()
+        -- Don't request the same name more than once every 5 minutes globally
+        Whorkaround.recentRequests = Whorkaround.recentRequests or {}
+        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 300) then return end
+        Whorkaround.recentRequests[cleanName] = GetTime()
         
         -- Default to 'U' (Unknown) only if no tag provided, but we aim for A/H
         local msg = REQ_PREFIX .. (factionTag or "U") .. ":" .. name
