@@ -77,6 +77,30 @@ local function GetPlayerInfoFromGuild(targetName)
     end
 end
 
+-- Helper to remove friend by name
+local function RemoveFriendByName(targetName)
+    if not targetName then return end
+    for i = 1, GetNumFriends() do
+        local name = GetFriendInfo(i)
+        if name and name:lower() == targetName:lower() then
+            RemoveFriend(i)
+            return true
+        end
+    end
+end
+
+-- Helper to set friend note by name
+local function SetFriendNoteByName(targetName, note)
+    if not targetName then return end
+    for i = 1, GetNumFriends() do
+        local name = GetFriendInfo(i)
+        if name and name:lower() == targetName:lower() then
+            SetFriendNotes(i, note)
+            return true
+        end
+    end
+end
+
 -- Improved Class Color Detector (fast-path + cache + faction detection)
 local function GetClassColorCode(className, name)
     if name then
@@ -159,15 +183,12 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local displayName = name:gsub("^%l", string.upper)
     local classColor = GetClassColorCode(class, name)
     local timestamp = timestamp or time()
-    local isLive = (time() - timestamp < 10)
+    local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
+    isLive = isLive or isDataRecent
     local playerFaction = UnitFactionGroup("player")
     local enemyFaction = (playerFaction == "Horde") and "Alliance" or "Horde"
     local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
-
-    if Whorkaround.removingFriends and Whorkaround.removingFriends[cleanName] then
-        return
-    end
 
     -- DEDUPLICATION: Prevent double-prints within 100ms
     Whorkaround.lastPrint = Whorkaround.lastPrint or {}
@@ -247,14 +268,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
 
     local now = GetTime()
-    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 60)
+    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 2)
 
     -- BROADCAST RULES: 
     -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting)
     -- 2. Only if not recently broadcasted
     local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting")
     if isLocal and canBroadcast and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
-        Whorkaround.broadcastThrottle[cleanName] = now
         Whorkaround:Log("Broadcasting local data for " .. name, "NETWORK")
         Whorkaround:Broadcast(name, level, class, area, faction, timestamp)
     end
@@ -287,6 +307,14 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
                 level = level, class = class, zone = zone,
                 faction = faction, timestamp = timestamp, isLive = newIsLive
             }
+        end
+
+        -- IMMEDIATE LIVE PRINT: If we got a live hit, don't wait for the timeout
+        if newIsLive then
+            Whorkaround:Log("Live result received for " .. name .. "! Printing immediately.", "NETWORK")
+            Whorkaround.networkWaiters[cleanName] = nil
+            Whorkaround:PrintWhoResult(name, level, class, zone, true, "WhorkComm", faction, timestamp)
+            Whorkaround.bestNetworkHits[cleanName] = nil
         end
     end
 end
@@ -334,7 +362,7 @@ function Whorkaround:ShowStats()
             factions.Alliance or 0, factions.Horde or 0))
         frame:AddMessage("- Sources: Manual: " ..
         sources.FriendsList ..
-        ", Guild: " .. sources.GuildRoster .. ", Sightings: " .. sources.Sighting .. ", Comm: " .. sources.WhorkComm)
+        ", Guild: " .. sources.GuildRoster .. ", Sightings: " .. sources.Sighting .. ", Comm: " .. sources.WhorkComm .. ", Cache: " .. sources.Cache)
     end
 end
 
@@ -441,9 +469,9 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             if type(startTime) == "number" then
                 local diff = now - startTime
-                if diff > 1.5 and Whorkaround.pendingQueries[name] ~= "TIMEOUT" and Whorkaround.pendingQueries[name] ~= "PROXY" then
+                if diff > 1.0 and Whorkaround.pendingQueries[name] ~= "TIMEOUT" and Whorkaround.pendingQueries[name] ~= "PROXY" then
                     Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
-                    Whorkaround.pendingQueries[name] = "TIMEOUT"; Whorkaround.removingFriends[name] = GetTime(); RemoveFriend(name)
+                    Whorkaround.pendingQueries[name] = "TIMEOUT"; Whorkaround.removingFriends[name] = GetTime(); RemoveFriendByName(name)
                 end
                 if diff > 5 then
                     Whorkaround.pendingQueries[name] = nil; Whorkaround.addedSuppression[name] = nil; Whorkaround.removingFriends[name] = nil
@@ -451,21 +479,33 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             end
         end
         -- NETWORK SCAN TIMEOUT
-        Whorkaround.networkWaiters = Whorkaround.networkWaiters or {}
-        Whorkaround.bestNetworkHits = Whorkaround.bestNetworkHits or {}
         for name, startTime in pairs(Whorkaround.networkWaiters) do
-            if (now - startTime) > 5 then
+            if (now - startTime) > 6 then
                 Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
                 Whorkaround.networkWaiters[name] = nil
                 local best = Whorkaround.bestNetworkHits[name]
                 if best then
-                    Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, not best.isLive, "WhorkComm", best.faction, best.timestamp)
+                    Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm", best.faction, best.timestamp)
                 else
                     local data = Whorkaround_DB and Whorkaround_DB[name]
                     Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", true, "TIMEOUT", data and data.faction)
                 end
                 Whorkaround.bestNetworkHits[name] = nil
             end
+        end
+
+        -- RECENT REMOVALS CLEANUP (Every 5 seconds)
+        for name, removalTime in pairs(Whorkaround.removingFriends) do
+            if (now - removalTime) > 10 then
+                Whorkaround.removingFriends[name] = nil
+            end
+        end
+
+        -- SMART GHOST CLEANUP: Only runs 5s after the last addon action (query/proxy)
+        if Whorkaround.lastActionTime and (now - Whorkaround.lastActionTime > 5) then
+            Whorkaround:Log("Running scheduled ghost friend cleanup...", "CLEANUP")
+            Whorkaround:CleanGhostFriends()
+            Whorkaround.lastActionTime = nil
         end
     end
 end)
@@ -510,16 +550,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
     elseif event == "FRIENDLIST_UPDATE" then
         local processed = {}
-        for i = 1, GetNumFriends() do
+        for i = GetNumFriends(), 1, -1 do
             local name, level, class, area, connected, _, note = GetFriendInfo(i)
             if name then
                 local displayName = name:gsub("^%l", string.upper)
                 local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+                
                 if Whorkaround.pendingQueries[cleanName] and not processed[cleanName] then
-                    -- Don't request the same name more than once every 5 minutes globally
-                    Whorkaround.recentRequests = Whorkaround.recentRequests or {}
-                    if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 300) then return end
-                    Whorkaround.recentRequests[cleanName] = GetTime()
                     processed[cleanName] = true
                     if not note or note == "" then 
                         Whorkaround:Log("Tagging friend: " .. name, "LOCAL")
@@ -535,7 +572,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
                             
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
-                            Whorkaround:PrintWhoResult(name, level, class, area, false, "SILENT", faction)
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, "SILENT", faction)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         else
                             Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
@@ -545,7 +582,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                         if connected then
                             Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent default logic
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, level, class, area, false, "FriendsList")
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, "FriendsList")
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         else
                             Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
@@ -606,9 +643,10 @@ function Whorkaround:ProxyQuery(name)
     end
 
     Whorkaround:Log("Starting Friends-List Proxy lookup for " .. displayName, "PROXY")
+    Whorkaround.lastActionTime = GetTime()
     Whorkaround.pendingQueries[name] = "PROXY"; Whorkaround.addedSuppression[name] = GetTime()
     AddFriend(displayName)
-    SetFriendNotes(displayName, "Whorkaround:Tag")
+    SetFriendNoteByName(displayName, "Whorkaround:Tag")
 end
 
 function Whorkaround:Query(name, silent)
@@ -680,6 +718,8 @@ function Whorkaround:Query(name, silent)
     end
 
     if GetNumFriends() >= 100 then print("|cff1abc9cWhorkaround:|r List full!"); return end
+    Whorkaround:Log("Starting Friends-List lookup for " .. displayName, "LOCAL")
+    Whorkaround.lastActionTime = GetTime()
     Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); AddFriend(displayName)
 end
 

@@ -71,7 +71,10 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         if now >= sendTime then
             local data = Whorkaround_DB and Whorkaround_DB[name]
             if data and data.level and data.level > 0 then
-                Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false)
+                local isLocal = (data.source == "FriendsList" or data.source == "Manual" or data.source == "Sighting")
+                if isLocal then
+                    Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false)
+                end
             end
             scheduledResponses[name] = nil
         end
@@ -122,27 +125,49 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
                 local cleanName = targetName:lower():gsub("^%s*(.-)%s*$", "%1")
                 local data = Whorkaround_DB and Whorkaround_DB[cleanName]
+                local myFactionTag = (UnitFactionGroup("player") == "Alliance") and "A" or "H"
+                local isCorrectFaction = (targetFaction == "U" or targetFaction == myFactionTag)
+
+                -- IMMEDIATE PROXY CHECK: If they are already on our friends list and online, reply INSTANTLY
+                for i = 1, GetNumFriends() do
+                    local fName, level, class, area, connected = GetFriendInfo(i)
+                    if fName and fName:lower() == cleanName and connected then
+                        Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
+                        Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
+                        return -- No need for further scheduling
+                    end
+                end
+                
+                -- PROXY LOGIC: Allow proxy if no cache OR cache is older than 60s
+                local hasFreshCache = data and data.level and data.level > 0 and (time() - (data.lastSeen or 0) < 60)
+                
+                if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not hasFreshCache then
+                    Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
+                    local proxyDelay = 0.1 + (math.random() * 0.7) -- Proxies start their probe quickly
+                    scheduledProxy[cleanName] = GetTime() + proxyDelay
+                    
+                    -- If we had a cached response scheduled, cancel it if we are doing a proxy
+                    scheduledResponses[cleanName] = nil
+                end
+
                 if data and data.level and data.level > 0 then
                     -- SENIORITY SUPPRESSION (CACHED DATA):
                     local age = time() - (data.lastSeen or 0)
-                    local isFresh = (age < 10)
-                    local baseDelay = isFresh and 0 or 2.5
-                    local ageFactor = isFresh and 0 or math.min(0.5, (age / 86400) * 0.1)
-                    local randomBuffer = isFresh and 0 or (math.random() * 1.5)
+                    local isFresh = (age < 30)
+                    
+                    -- Check broadcast throttle before scheduling (Anti-Echo)
+                    local now = GetTime()
+                    local canBroadcast = not (Whorkaround.broadcastThrottle and Whorkaround.broadcastThrottle[cleanName]) or (now - (Whorkaround.broadcastThrottle[cleanName] or 0) > 2)
+                    if not canBroadcast then return end
+
+                    -- Cache delay starts AFTER the proxy window (approx 1.5s)
+                    local baseDelay = 2.0 + (isFresh and 0 or 1.5)
+                    local ageFactor = (age / 86400) * 0.5
+                    local randomBuffer = math.random() * 2.0
                     
                     if not scheduledResponses[cleanName] then
-                        Whorkaround:Log("Scheduling " .. (isFresh and "INSTANT " or "") .. "response for: " .. targetName, "NETWORK")
+                        Whorkaround:Log("Scheduling cached response for: " .. targetName, "NETWORK")
                         scheduledResponses[cleanName] = GetTime() + baseDelay + ageFactor + randomBuffer
-                    end
-                else
-                    local myFactionTag = (UnitFactionGroup("player") == "Alliance") and "A" or "H"
-                    -- Faction check (Relaxed for testing/legacy support)
-                    local isCorrectFaction = (targetFaction == "U" or targetFaction == myFactionTag)
-                    
-                    if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not scheduledResponses[cleanName] then
-                        Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
-                        local proxyDelay = 0.2 + (math.random() * 1.0)
-                        scheduledProxy[cleanName] = GetTime() + proxyDelay
                     end
                 end
                 
@@ -186,16 +211,31 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local myData = Whorkaround_DB and Whorkaround_DB[cleanName]
                     local myTime = myData and myData.lastSeen or 0
 
-                    -- Anti-Echo: If we just heard data from the network, don't broadcast it ourselves for a while
+                    -- Anti-Echo: Record that we heard data from the network
                     Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
                     Whorkaround.broadcastThrottle[cleanName] = GetTime()
                     
                     if scheduledProxy[cleanName] then
-                        -- We have a live lookup pending. Only cancel if they also have live data.
-                        if otherIsLive then scheduledProxy[cleanName] = nil end
-                    elseif scheduledResponses[cleanName] then
+                        -- We have a timer pending. Cancel if ANY data arrives.
+                        if otherIsLive or (otherTime > (time() - 30)) then
+                            Whorkaround:Log("Canceling pending proxy timer for " .. name .. " (Data heard)", "PROXY")
+                            scheduledProxy[cleanName] = nil 
+                        end
+                    end
+
+                    -- NEW: If we already ADDED the friend for a proxy lookup, cancel it too
+                    if Whorkaround.pendingQueries and Whorkaround.pendingQueries[cleanName] == "PROXY" then
+                         if otherIsLive or (otherTime > (time() - 30)) then
+                            Whorkaround:Log("Canceling active proxy query for " .. name .. " (Data heard)", "PROXY")
+                            Whorkaround.pendingQueries[cleanName] = nil
+                            -- Note: The friend stays in the list until CleanGhostFriends runs, but we won't broadcast it.
+                        end
+                    end
+
+                    if scheduledResponses[cleanName] then
                         -- We have cache pending. Cancel if they have live OR newer/equal cache.
                         if otherIsLive or otherTime >= myTime then
+                            Whorkaround:Log("Canceling pending cache for " .. name .. " (Better/Equal data heard)", "NETWORK")
                             scheduledResponses[cleanName] = nil
                         end
                     end
@@ -237,6 +277,10 @@ end
 function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
+        local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
+        Whorkaround.broadcastThrottle[cleanName] = GetTime()
+
         name = name:gsub("^%l", string.upper)
         class = (class or "Unknown"):upper()
         timestamp = timestamp or time()
@@ -262,7 +306,6 @@ function Whorkaround:Request(name, factionTag)
         -- Don't request the same name more than once every 30 seconds globally
         Whorkaround.recentRequests = Whorkaround.recentRequests or {}
         if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 30) then 
-            Whorkaround:Log("Request for " .. name .. " suppressed by global throttle.", "NETWORK")
             return 
         end
         Whorkaround.recentRequests[cleanName] = GetTime()
