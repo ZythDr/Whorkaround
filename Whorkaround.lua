@@ -151,31 +151,17 @@ local function GetRelativeTime(timestamp)
 end
 
 -- Function to print the "Who" result
-function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, faction, timestamp, isProxy)
-    local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, faction, timestamp)
+    if not name then return end
     
-    -- DEDUPLICATION: Prevent double-prints within 100ms
-    Whorkaround.lastPrint = Whorkaround.lastPrint or {}
-    local now = GetTime()
-    if Whorkaround.lastPrint[cleanName] and (now - Whorkaround.lastPrint[cleanName] < 0.1) then return end
-    Whorkaround.lastPrint[cleanName] = now
-
     local prefix = "|cff1abc9cWhorkaround:|r "
-    local playerFaction = UnitFactionGroup("player")
-    local enemyFaction = (playerFaction == "Horde") and "Alliance" or "Horde"
-    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
-    timestamp = timestamp or time()
-
-    if not faction then
-        if level == 0 then faction = enemyFaction else faction = playerFaction end
-    end
-
     local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
     local displayName = name:gsub("^%l", string.upper)
     local classColor = GetClassColorCode(class, name)
     local timestamp = timestamp or time()
     local isLive = (time() - timestamp < 10)
     local playerFaction = UnitFactionGroup("player")
+    local enemyFaction = (playerFaction == "Horde") and "Alliance" or "Horde"
     local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
@@ -189,12 +175,16 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
     if Whorkaround.lastPrint[cleanName] and (now - Whorkaround.lastPrint[cleanName] < 0.1) then return end
     Whorkaround.lastPrint[cleanName] = now
 
+    if not faction then
+        faction = (level == 0) and enemyFaction or playerFaction
+    end
+
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - timestamp < 10)
             if not isFresh then
-                local statusMsg = (level == 0) and "identified as " .. (faction or "Unknown") or "appears to be offline"
+                local statusMsg = (level == 0) and "identified as " .. faction or "appears to be offline"
                 for _, frame in ipairs(GetOutputFrames()) do
                     frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor, displayName, statusMsg), 1, 1, 0)
                 end
@@ -215,7 +205,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
         local displayFaction = faction or cachedData.faction or "Unknown"
         local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
 
-        if source == "Whorkaround" or source == "TIMEOUT" then
+        if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
             local line2 = string.format("%sData %s was successfully fetched from network.", prefix, statusLabel)
             for _, frame in ipairs(GetOutputFrames()) do
