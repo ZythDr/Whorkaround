@@ -139,7 +139,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     -- Faction check (Relaxed for testing/legacy support)
                     local isCorrectFaction = (targetFaction == "U" or targetFaction == myFactionTag)
                     
-                    if Whorkaround_Settings.allowProxy and not scheduledProxy[cleanName] and not scheduledResponses[cleanName] then
+                    if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not scheduledResponses[cleanName] then
                         Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
                         local proxyDelay = 0.5 + (math.random() * 2.0)
                         scheduledProxy[cleanName] = GetTime() + proxyDelay

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.6] - 2026-04-28
+
+### Fixed
+- Cross-Faction Proxying: Enforced a strict faction check for live proxy lookups. Users will now only attempt a background /who if the target's faction matches their own.
+
 ## [1.4.5] - 2026-04-28
 
 ### Fixed
