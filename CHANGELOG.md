@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-04-28
+
+### Fixed
+- Navigation Stability: Resolved an issue where users could become "trapped" in the Who tab after switching social categories.
+- UI Persistence: Fixed a bug where the "People Found" counter would be overwritten by native Blizzard updates.
+
 ## [1.4.1] - 2026-04-28
 
 ### Added
