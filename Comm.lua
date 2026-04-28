@@ -229,7 +229,7 @@ end
 function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
-        name = name:match("^%a+") or name
+        name = name:gsub("^%l", string.upper)
         class = (class or "Unknown"):upper()
         timestamp = timestamp or time()
         local f = (faction == "Alliance") and "A" or (faction == "Horde" and "H" or "U")

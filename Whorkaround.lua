@@ -182,7 +182,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
         local displayLevel = (level and level > 0 and level <= 60) and level or (cachedData and cachedData.level)
         local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
         local displayFaction = faction or cachedData.faction or "Unknown"
-        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, name, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
+        local displayName = name:gsub("^%l", string.upper)
+        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
 
         if source == "Whorkaround" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
@@ -192,8 +193,10 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
                 frame:AddMessage(line2, 1, 1, 0)
             end
         else
-            for _, frame in ipairs(GetOutputFrames()) do
-                frame:AddMessage(line1, 1, 1, 0)
+            if source ~= "SILENT" then
+                for _, frame in ipairs(GetOutputFrames()) do
+                    frame:AddMessage(line1, 1, 1, 0)
+                end
             end
         end
     else
@@ -499,6 +502,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
                             
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
+                            Whorkaround:PrintWhoResult(name, level, class, area, false, "SILENT", faction)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(name)
                         else
                             Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
@@ -544,6 +548,7 @@ function Whorkaround:ProxyQuery(name)
             
             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
             Whorkaround:Broadcast(displayName, level, class, zone, faction, time(), true)
+            Whorkaround:PrintWhoResult(displayName, level, class, zone, false, "SILENT", faction)
             return
         end
     end

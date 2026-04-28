@@ -402,7 +402,7 @@ function Whorkaround:InitGUI()
     local header = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     header:SetPoint("TOPLEFT", 20, -15); header:SetText("Whorkaround Options")
     
-    local version = GetAddOnMetadata("Whorkaround", "Version") or "1.4.3"
+    local version = GetAddOnMetadata("Whorkaround", "Version") or "1.4.4"
     local verText = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     verText:SetPoint("LEFT", header, "RIGHT", 10, 0); verText:SetText("v" .. version); verText:SetTextColor(0.5, 0.5, 0.5)
 

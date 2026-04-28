@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.4] - 2026-04-28
+
+### Fixed
+- Proxy Invisibility: Network replies provided by the user as a proxy are now silent and won't appear in the proxy user's chat.
+- Duplicate Broadcasts: Live proxy hits now correctly cancel scheduled cached broadcasts for the same target, preventing redundant network messages.
+- Name Formatting: Enforced proper title-casing (capitalized first letter) for player names in all UI outputs and network broadcasts.
+
 ## [1.4.3] - 2026-04-28
 
 ### Fixed
