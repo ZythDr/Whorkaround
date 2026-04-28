@@ -110,6 +110,7 @@ end
 
 function Whorkaround:InitGUI()
     if self.GUI then return end
+    local components = {}
     
     local function CreateInlineEditBox(parent, label, setting, tooltip)
         local container = CreateFrame("Frame", nil, parent)
@@ -330,7 +331,8 @@ function Whorkaround:InitGUI()
     local nativeEditBoxScripts = {}
 
     local function SyncUI()
-        if not tab1 or not tab2 then return end
+        if not FriendsFrame:IsVisible() or (not WhoFrame:IsVisible() and not (settings and settings:IsVisible())) then return end
+        if not tab1 or not tab2 or not settings then return end
         local browserActive = tab1:GetChecked()
         local settingsActive = tab2:GetChecked()
 
@@ -393,10 +395,7 @@ function Whorkaround:InitGUI()
         end
     end
     
-    -- Handle Escape key to close settings
-    tinsert(UISpecialFrames, settings:GetName())
     settings:SetScript("OnHide", function()
-        tab2:SetChecked(false)
         SyncUI()
     end)
 
@@ -409,15 +408,19 @@ function Whorkaround:InitGUI()
 
     local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab", "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
     tabBox:SetPoint("TOPLEFT", 20, -45)
+    components.tabBox = tabBox
 
     local autoOpen = CreateCheckBox(settings, "Auto-open database browser", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
     autoOpen:SetPoint("TOPLEFT", tabBox, "BOTTOMLEFT", 0, -10)
+    components.autoOpen = autoOpen
 
     local proxyCheck = CreateCheckBox(settings, "Enable Proxy Mode", "allowProxy", "Allows other users to query players through you.")
     proxyCheck:SetPoint("TOPLEFT", autoOpen, "BOTTOMLEFT", 0, -5)
+    components.proxyCheck = proxyCheck
 
     local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1)
     retentionSlider:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 10, -30)
+    components.retentionSlider = retentionSlider
 
     -- Stats Display (Moved to bottom edge)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -466,6 +469,12 @@ function Whorkaround:InitGUI()
 
     local clearBtn = CreateButton(settings, "Clear Database", 130, 22)
     clearBtn:SetPoint("BOTTOMRIGHT", -10, 10)
+    components.clearBtn = clearBtn
+
+    -- Notify skinning module about local components
+    if Whorkaround.SkinGUIComponents then
+        Whorkaround:SkinGUIComponents(components)
+    end
     
     WhoFrameColumnHeader1:HookScript("OnClick", Column_OnClick)
     WhoFrameColumnHeader2:HookScript("OnClick", Column_OnClick)
@@ -599,14 +608,34 @@ function Whorkaround:InitGUI()
                 SyncUI()
             end
         else
+            tab1:SetChecked(false)
+            tab2:SetChecked(false)
             tab1:Hide(); tab2:Hide()
+            SyncUI()
         end
         wasWhoShown = isWhoShown
+    end)
+
+    WhoFrame:HookScript("OnHide", function()
+        if tab1 then tab1:SetChecked(false) end
+        if tab2 then tab2:SetChecked(false) end
+        SyncUI()
     end)
 
     WhoFrame:HookScript("OnShow", function()
         SyncUI()
     end)
+
+    hooksecurefunc("WhoList_Update", function()
+        if tab1 and tab1:GetChecked() then
+            Whorkaround_WhoList_Update()
+        end
+    end)
+
+    -- Apply ElvUI Skinning if available
+    if Whorkaround.ApplyElvUISkin then
+        Whorkaround:ApplyElvUISkin()
+    end
 end
 
 -- Hook into Social Frame

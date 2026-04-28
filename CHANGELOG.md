@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-04-28
+
+### Added
+- ElvUI Skinning Support: A new dedicated skinning module that provides a native ElvUI look for the database browser and options.
+- Enhanced Options Readability: Implemented a "Double Dark" background for the options panel when ElvUI is detected, significantly improving contrast and readability.
+- Colorized Addon Title: The addon now appears colorized in the Blizzard Addon list and management tools.
+
+### Changed
+- Refined Side Tab positioning for ElvUI users to ensure perfect alignment with the Social panel.
+
+### Fixed
+- Resolved "Ghost Frame" Issue: Fixed a bug where native WhoFrame components would linger on screen if the Social panel was closed via the Escape key while the Options tab was active.
+- Database Sanitization: Enforced strict validation to prevent Level 0 (incomplete) player records from being saved, and added an automated cleanup to prune existing invalid records.
+- UI Stability: Added comprehensive nil-safety to sorting and rendering logic to prevent interface crashes with partial data.
+
 ## [1.4.0] - 2026-04-28
 
 ### Added
