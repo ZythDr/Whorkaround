@@ -450,8 +450,12 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 end
             end
         end
-        for name, waitTime in pairs(Whorkaround.networkWaiters) do
-            if now - waitTime > 5.0 then
+        -- NETWORK SCAN TIMEOUT
+        Whorkaround.networkWaiters = Whorkaround.networkWaiters or {}
+        Whorkaround.bestNetworkHits = Whorkaround.bestNetworkHits or {}
+        for name, startTime in pairs(Whorkaround.networkWaiters) do
+            if (now - startTime) > 5 then
+                Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
                 Whorkaround.networkWaiters[name] = nil
                 local best = Whorkaround.bestNetworkHits[name]
                 if best then
@@ -460,9 +464,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                     local data = Whorkaround_DB and Whorkaround_DB[name]
                     Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", true, "TIMEOUT", data and data.faction)
                 end
-                -- Final Cleanup
                 Whorkaround.bestNetworkHits[name] = nil
-                Whorkaround.networkWaiters[name] = nil
             end
         end
     end
