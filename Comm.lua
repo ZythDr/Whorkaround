@@ -144,7 +144,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 end
                 
                 if onList then 
-                    Whorkaround:Log("Proxy request for " .. targetName .. " ignored (Already on friends list but offline/disconnected).", "PROXY")
                     return 
                 end
                 
@@ -153,7 +152,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 
                 if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not hasFreshCache then
                     Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
-                    local proxyDelay = 0.1 + (math.random() * 0.7) -- Proxies start their probe quickly
+                    local proxyDelay = 0.1 + (math.random() * 0.4) -- Snappier proxy start
                     scheduledProxy[cleanName] = GetTime() + proxyDelay
                     
                     -- If we had a cached response scheduled, cancel it if we are doing a proxy
@@ -167,13 +166,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     
                     -- Check broadcast throttle before scheduling (Anti-Echo)
                     local now = GetTime()
-                    local canBroadcast = not (Whorkaround.broadcastThrottle and Whorkaround.broadcastThrottle[cleanName]) or (now - (Whorkaround.broadcastThrottle[cleanName] or 0) > 2)
+                    local canBroadcast = not (Whorkaround.broadcastThrottle and Whorkaround.broadcastThrottle[cleanName]) or (now - (Whorkaround.broadcastThrottle[cleanName] or 0) > 1)
                     if not canBroadcast then return end
 
-                    -- Cache delay starts AFTER the proxy window (approx 1.5s)
-                    local baseDelay = 2.0 + (isFresh and 0 or 1.5)
-                    local ageFactor = (age / 86400) * 0.5
-                    local randomBuffer = math.random() * 2.0
+                    -- Cache delay starts AFTER the proxy window (approx 1s)
+                    local baseDelay = 1.2 + (isFresh and 0 or 1.0)
+                    local ageFactor = (age / 86400) * 0.3
+                    local randomBuffer = math.random() * 1.5
                     
                     if not scheduledResponses[cleanName] then
                         Whorkaround:Log("Scheduling cached response for: " .. targetName, "NETWORK")
@@ -315,7 +314,7 @@ function Whorkaround:Request(name, factionTag)
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
         -- Don't request the same name more than once every 30 seconds globally
         Whorkaround.recentRequests = Whorkaround.recentRequests or {}
-        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 30) then 
+        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 5) then 
             return 
         end
         Whorkaround.recentRequests[cleanName] = GetTime()

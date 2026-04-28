@@ -268,7 +268,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
 
     local now = GetTime()
-    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 2)
+    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 1)
 
     -- BROADCAST RULES: 
     -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting)
