@@ -402,7 +402,7 @@ function Whorkaround:InitGUI()
     local header = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     header:SetPoint("TOPLEFT", 20, -15); header:SetText("Whorkaround Options")
     
-    local version = GetAddOnMetadata("Whorkaround", "Version") or "1.4.2"
+    local version = GetAddOnMetadata("Whorkaround", "Version") or "1.4.3"
     local verText = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     verText:SetPoint("LEFT", header, "RIGHT", 10, 0); verText:SetText("v" .. version); verText:SetTextColor(0.5, 0.5, 0.5)
 
@@ -488,7 +488,8 @@ function Whorkaround:InitGUI()
                 if d then
                     local displayName = self.playerName:gsub("^%l", string.upper)
                     local link = string.format("|Hplayer:%s|h[%s]|h", self.playerName, displayName)
-                    if ChatFrameEditBox:IsShown() then ChatFrameEditBox:Insert(link)
+                    local eb = ChatEdit_GetActiveWindow() or (LastSayName and _G[LastSayName.."EditBox"]) or _G["ChatFrameEditBox"]
+                    if eb and eb:IsVisible() then eb:Insert(link)
                     else print(string.format("%s: Level %d %s %s - %s", link, d.level, d.faction or "", d.class, d.zone)) end
                 end
             elseif button == "LeftButton" then

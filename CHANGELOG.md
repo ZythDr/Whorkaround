@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.3] - 2026-04-28
+
+### Fixed
+- Shift-Click Chat Links: Fixed an issue where shift-clicking a player name in chat would trigger a /who search instead of inserting the name into the chat editbox.
+- Improved EditBox Detection: Enhanced compatibility with ElvUI and other custom chat addons to ensure name links are correctly inserted into the active chat window.
+
 ## [1.4.2] - 2026-04-28
 
 ### Fixed

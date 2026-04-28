@@ -709,7 +709,7 @@ local function ChatLinkFilter(self, event, msg, ...)
             local data = Whorkaround_DB and Whorkaround_DB[dbKey]
             local color = GetClassColorCode(data and data.class, name)
             local displayName = name:gsub("^%l", string.upper)
-            return string.format("|Hplayer:%s|h[|r%s%s|r]|h", name, color, displayName)
+            return string.format("|Hplayer:%s|h%s[%s]|r|h", name, color, displayName)
         end
         msg = msg:gsub("%[([%a]+)%]", ReplacementFunc):gsub("@([%a]+)", ReplacementFunc)
         msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
