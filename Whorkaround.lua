@@ -645,8 +645,19 @@ function Whorkaround:ProxyQuery(name)
     Whorkaround:Log("Starting Friends-List Proxy lookup for " .. displayName, "PROXY")
     Whorkaround.lastActionTime = GetTime()
     Whorkaround.pendingQueries[name] = "PROXY"; Whorkaround.addedSuppression[name] = GetTime()
-    AddFriend(displayName)
-    SetFriendNoteByName(displayName, "Whorkaround:Tag")
+    -- Safety: Check if already a friend before adding
+    local alreadyFriend = false
+    for i = 1, GetNumFriends() do
+        local fName = GetFriendInfo(i)
+        if fName and fName:lower() == name then alreadyFriend = true; break end
+    end
+
+    if not alreadyFriend then
+        AddFriend(displayName)
+        SetFriendNoteByName(displayName, "Whorkaround:Tag")
+    else
+        Whorkaround:Log("ProxyQuery: " .. displayName .. " is already on friends list. Skipping AddFriend.", "PROXY")
+    end
 end
 
 function Whorkaround:Query(name, silent)

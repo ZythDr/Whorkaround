@@ -128,14 +128,24 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 local myFactionTag = (UnitFactionGroup("player") == "Alliance") and "A" or "H"
                 local isCorrectFaction = (targetFaction == "U" or targetFaction == myFactionTag)
 
-                -- IMMEDIATE PROXY CHECK: If they are already on our friends list and online, reply INSTANTLY
+                -- IMMEDIATE PROXY CHECK: If they are already on our friends list, don't try to add them again
+                local onList = false
                 for i = 1, GetNumFriends() do
                     local fName, level, class, area, connected = GetFriendInfo(i)
-                    if fName and fName:lower() == cleanName and connected then
-                        Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
-                        Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
-                        return -- No need for further scheduling
+                    if fName and fName:lower() == cleanName then
+                        onList = true
+                        if connected then
+                            Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
+                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
+                            return -- Online friend handled instantly
+                        end
+                        break
                     end
+                end
+                
+                if onList then 
+                    Whorkaround:Log("Proxy request for " .. targetName .. " ignored (Already on friends list but offline/disconnected).", "PROXY")
+                    return 
                 end
                 
                 -- PROXY LOGIC: Allow proxy if no cache OR cache is older than 60s
