@@ -1,8 +1,11 @@
 # Whorkaround
 
-Whorkaround is a social intelligence suite for Project Epoch where the standard /who command is disabled. It provides a robust alternative for identifying players by gathering data from multiple sources and building a persistent, account-wide database of the players you encounter.
+### Whorkaround is a "best-effort" /who replacement for Project Epoch where the standard /who command is disabled. It provides a robust alternative for identifying players by gathering data from multiple sources and building a persistent, account-wide database of the players you encounter.  
+### It functions primarily by temporarily adding players to your friends list, reading their level, zone and class info, then displaying it in chat similar to a regular /who result.  
+### Same-faction lookups should work pretty well and as expected, but cross-faction lookups still need a lot of polish.  
+### For cross-faction lookups it relies on users requesting and sharing /who lookup data through a chat channel, similar to how other broadcasting addons like LFG etc function.
 
-### Key Features
+## Key Features
 
 - **Database Browser**: Integrated directly into the Blizzard Social Panel. Access and filter your historical player database with real-time searching and sorting.
 - **Authoritative Data**: Provides exact Level, Class, and Faction information. No more "guessed" data—if a player is found, the results are accurate.
@@ -15,7 +18,7 @@ Whorkaround is a social intelligence suite for Project Epoch where the standard 
 - **Smart Linking & Mentions**: Link any player in chat by typing [Name] or @Name. The addon colorizes the name by class, normalizes capitalization, and creates a functional player hyperlink.
 - **Silent Operation**: All background queries and friends-list "handshakes" are handled quietly. System messages are suppressed, and the friends list is automatically managed to prevent clutter.
 
-### Commands
+## Commands
 
 - `/who Name` or `/whom Name` - Performs a manual query for a player.
 - `/whogui` - Opens the Social panel directly to the Database Browser and Options.
