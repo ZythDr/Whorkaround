@@ -201,7 +201,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
-    if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" then
+    if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "PROXY" then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - timestamp < 10)
             if not isFresh then
@@ -234,14 +234,15 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                 frame:AddMessage(line2, 1, 1, 0)
             end
         else
-            if source ~= "SILENT" then
+            if source ~= "SILENT" and source ~= "PROXY" then
                 for _, frame in ipairs(GetOutputFrames()) do
                     frame:AddMessage(line1, 1, 1, 0)
                 end
             end
         end
     else
-        if source == "TIMEOUT" or source == "Manual" then
+        local isSilent = (source == "PROXY" or source == "SILENT")
+        if not isSilent and (source == "TIMEOUT" or source == "Manual") then
             local factionColor = (faction == "Horde") and "|cffff2020" or "|cff0070dd"
             local failMsg = "No community data was found."
             if faction == playerFaction then failMsg = "User is offline and no community data was found." end
@@ -271,16 +272,16 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 1)
 
     -- BROADCAST RULES: 
-    -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting)
+    -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting, PROXY)
     -- 2. Only if not recently broadcasted
-    local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting")
+    local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting" or source == "PROXY")
     if isLocal and canBroadcast and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
         Whorkaround:Log("Broadcasting local data for " .. name, "NETWORK")
         Whorkaround:Broadcast(name, level, class, area, faction, timestamp, false, "NORMAL")
     end
 
     -- Compatibility: Set flag to fire a fake Who event to stop other addons (like ElvUI) from retrying
-    if source ~= "WhorkComm" and source ~= "SILENT" then
+    if source ~= "WhorkComm" and source ~= "SILENT" and source ~= "PROXY" then
         Whorkaround.fakeWhoTriggered = true
     end
 end
@@ -565,25 +566,27 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     if Whorkaround.pendingQueries[cleanName] == "PROXY" then
                         if connected then
                             local faction = UnitFactionGroup("player")
-                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent double-trigger
                             Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
                             
                             -- DE-DUPLICATION: Cancel any pending cached response schedule
                             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
                             
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, "SILENT", faction)
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, "PROXY", faction)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                            Whorkaround.pendingQueries[cleanName] = nil
                         else
                             Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i); Whorkaround.pendingQueries[cleanName] = nil
                         end
                     elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
                         if connected then
-                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent default logic
+                            local qSource = Whorkaround.pendingQueries[cleanName]
+                            local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, "FriendsList")
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                            Whorkaround.pendingQueries[cleanName] = nil
                         else
                             Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
                             Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
