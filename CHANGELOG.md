@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.11] - 2026-04-28
+
+### Fixed
+- Critical Lua Error: Fixed a crash in the results printer caused by an incorrect function call during friend removal checks.
+- Chat Shift-Click: Restored the ability to insert player names into the chat editbox when it is active. Shift-clicking will now only trigger a /who query if the chat input is closed.
+
 ## [1.4.10] - 2026-04-28
 
 ### Changed

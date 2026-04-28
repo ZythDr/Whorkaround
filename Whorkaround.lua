@@ -179,8 +179,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, cached, source, fa
     local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
-    if Whorkaround.RemovingFriend then
-        if Whorkaround:RemovingFriend(cleanName) then return end
+    if Whorkaround.removingFriends and Whorkaround.removingFriends[cleanName] then
+        return
     end
 
     -- DEDUPLICATION: Prevent double-prints within 100ms
@@ -712,7 +712,9 @@ local function HookChat()
             local name = link:match("player:([^:]+)")
             if name then
                 if IsShiftKeyDown() then
-                    Whorkaround:Query(name, true)
+                    local eb = ChatEdit_GetActiveWindow()
+                    if eb then return orig(...) end -- Native behavior (insert name)
+                    Whorkaround:Query(name)
                     return
                 elseif button == "RightButton" then
                     FriendsFrame_ShowDropdown(name, 1); return
