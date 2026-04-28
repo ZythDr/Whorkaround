@@ -2,10 +2,13 @@
 ## Title: Whorkaround
 ## Notes: A "best-effort" workaround addon for Epoch's disabled /who query system.
 ## Author: ZythDr
-## Version: 1.3.5
+## Version: 1.4.0
 ## SavedVariables: Whorkaround_DB, Whorkaround_Settings
 ## OptionalDeps: ElvUI
 
 Whorkaround.lua
+Debug.lua
+ChatThrottleLib.lua
 Comm.lua
 ElvUI-Compat.lua
+GUI.lua
