@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.9] - 2026-04-28
+
+### Fixed
+- Friend List Cleanup: Resolved an issue where temporary proxy friends were not being removed. Fixed by using proper 3.3.5 API indices for tagging and removal, and implementing backward iteration for cleanup loops.
+- Note Tagging: Corrected the friend tagging logic to ensure the Whorkaround:Tag is applied correctly to all background queries.
+
 ## [1.4.8] - 2026-04-28
 
 ### Changed

@@ -343,7 +343,7 @@ function Whorkaround:CleanGhostFriends()
         local name, _, _, _, _, _, note = GetFriendInfo(i)
         if note and note:find("^Whorkaround:") then
             Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
-            RemoveFriend(name)
+            RemoveFriend(i)
             cleaned = cleaned + 1
         end
     end
@@ -516,7 +516,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     processed[cleanName] = true
                     if not note or note == "" then 
                         Whorkaround:Log("Tagging friend: " .. name, "LOCAL")
-                        SetFriendNotes(name, NOTE_ID) 
+                        SetFriendNotes(i, NOTE_ID) 
                     end
                     if Whorkaround.pendingQueries[cleanName] == "PROXY" then
                         if connected then
@@ -529,22 +529,22 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
                             Whorkaround:PrintWhoResult(name, level, class, area, false, "SILENT", faction)
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(name)
+                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         else
                             Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(name); Whorkaround.pendingQueries[cleanName] = nil
+                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i); Whorkaround.pendingQueries[cleanName] = nil
                         end
                     elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
                         if connected then
-                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent double-trigger
+                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent default logic
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
                             Whorkaround:PrintWhoResult(name, level, class, area, false, "FriendsList")
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(name)
+                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         else
-                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST to prevent double-trigger
+                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
                             Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
                             Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(name)
+                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         end
                     end
                 end
