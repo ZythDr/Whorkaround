@@ -10,6 +10,22 @@ Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
 Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
 Whorkaround.printThrottle = Whorkaround.printThrottle or {}
 
+-- Debug Logging Utility
+function Whorkaround:Log(msg, category)
+    if Whorkaround_Settings and Whorkaround_Settings.debug then
+        local prefix = "|cff1abc9cWhorkaround Debug [" .. (category or "INFO") .. "]:|r "
+        DEFAULT_CHAT_FRAME:AddMessage(prefix .. msg, 0.7, 0.7, 0.7)
+    end
+end
+
+-- Toggle Debug Mode
+function Whorkaround:ToggleDebug()
+    Whorkaround_Settings = Whorkaround_Settings or {}
+    Whorkaround_Settings.debug = not Whorkaround_Settings.debug
+    local state = Whorkaround_Settings.debug and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"
+    print("|cff1abc9cWhorkaround:|r Debug mode is now " .. state)
+end
+
 -- Class lookup table for 3.3.5 (Project Epoch: No Death Knights)
 local localizedClassMap = {
     ["Warrior"] = "WARRIOR", ["Paladin"] = "PALADIN", ["Hunter"] = "HUNTER",

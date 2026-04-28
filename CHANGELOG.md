@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.5] - 2026-04-28
+
+### Fixed
+- Lua Error: Fixed a critical nil value error in Comm.lua by restoring the missing Whorkaround:Log and ToggleDebug utility functions.
+
 ## [1.4.4] - 2026-04-28
 
 ### Fixed
