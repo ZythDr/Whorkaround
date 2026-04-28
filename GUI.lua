@@ -228,6 +228,16 @@ function Whorkaround:InitGUI()
                 levelText:SetText((d.level or 0) > 0 and d.level or "??")
                 classText:SetText(displayClass)
                 
+                -- Support for ElvUI Class Icons
+                if button.icon then
+                    if classKey ~= "" and _G.CLASS_ICON_TCOORDS[classKey] then
+                        button.icon:Show()
+                        button.icon:SetTexCoord(unpack(_G.CLASS_ICON_TCOORDS[classKey]))
+                    else
+                        button.icon:Hide()
+                    end
+                end
+                
                 if dCol == "guild" then variableText:SetText(d.guild or "")
                 elseif dCol == "race" then variableText:SetText(d.race or "")
                 elseif dCol == "seen" then variableText:SetText(GetRelativeTime(d.seen or 0))
