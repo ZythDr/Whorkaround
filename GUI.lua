@@ -110,6 +110,7 @@ end
 
 function Whorkaround:InitGUI()
     if self.GUI then return end
+    self.GUI = true
     local components = {}
     
     local function CreateInlineEditBox(parent, label, setting, tooltip)
@@ -659,6 +660,7 @@ end
 -- Hook into Social Frame
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
-f:SetScript("OnEvent", function()
+f:SetScript("OnEvent", function(self)
     Whorkaround:InitGUI()
+    self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end)
