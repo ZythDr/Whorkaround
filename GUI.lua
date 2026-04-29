@@ -467,7 +467,7 @@ function Whorkaround:InitGUI()
     -- The "Arrow" Button
     local maintenanceBtn = CreateFrame("Button", nil, settings)
     maintenanceBtn:SetSize(24, 24)
-    maintenanceBtn:SetPoint("LEFT", statsNetwork, "RIGHT", 10, 0)
+    maintenanceBtn:SetPoint("LEFT", statsHeader, "RIGHT", 5, 0)
     maintenanceBtn:SetNormalTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
     maintenanceBtn:GetNormalTexture():SetRotation(math.rad(-90)) -- Point down
     
