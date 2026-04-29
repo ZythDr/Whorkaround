@@ -213,9 +213,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "PROXY" then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
-            -- For same-faction offline, we skip if very fresh. For enemy, we ALWAYS scan.
+            -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
             local isEnemy = (faction ~= playerFaction)
-            local isFresh = not isEnemy and cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 10)
+            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 10)
             
             if not isFresh then
                 local statusMsg = isEnemy and "identified as " .. faction or "appears to be offline"
@@ -771,8 +771,9 @@ function Whorkaround:Query(name, silent)
     local playerFaction = UnitFactionGroup("player")
     local isEnemy = cached and cached.faction and (cached.faction ~= playerFaction and cached.faction ~= "Unknown")
     
-    -- Normal fresh cache check (Only for same-faction; enemies always trigger network wait)
-    if not isEnemy and cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < 30) then
+    -- Normal fresh cache check (Enemies only allowed if super-fresh < 10s to reduce spam)
+    local threshold = isEnemy and 10 or 30
+    if cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
         Whorkaround:Log("Fresh cache hit for " .. displayName .. ". Skipping Friends List.", "LOCAL")
         if not silent then
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache", cached.faction, cached.lastSeen)
