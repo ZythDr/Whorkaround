@@ -444,7 +444,7 @@ function Whorkaround:InitGUI()
     local proxyModeMenu = CreateFrame("Frame", "WhorkaroundProxyModeMenu", settings, "UIDropDownMenuTemplate")
     local proxyModeBtn = CreateFrame("Button", nil, settings)
     proxyModeBtn:SetSize(20, 20)
-    proxyModeBtn:SetPoint("LEFT", proxyCheck.text, "RIGHT", 2, 0)
+    proxyModeBtn:SetPoint("LEFT", proxyCheck.text, "RIGHT", 12, 0)
     proxyModeBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
     proxyModeBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
     proxyModeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
@@ -468,11 +468,11 @@ function Whorkaround:InitGUI()
     components.proxyModeBtn = proxyModeBtn
 
     local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec", "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
-    proxyCooldown:SetPoint("TOPLEFT", 210, -115) -- Aligned with proxyCheck
+    proxyCooldown:SetPoint("TOPLEFT", 20, -165) 
     components.proxyCooldown = proxyCooldown
 
     local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks", "Automatically removes players from your local database if they haven't been seen in this many weeks.")
-    retentionSlider:SetPoint("TOPLEFT", 210, -185)
+    retentionSlider:SetPoint("TOPLEFT", 210, -165)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
