@@ -173,7 +173,7 @@ function Whorkaround:InitGUI()
         if Whorkaround_DB then
             for name, entry in pairs(Whorkaround_DB) do
                 if query == "" or name:lower():find(query) or (entry.class and entry.class:lower():find(query)) or (entry.zone and entry.zone:lower():find(query)) then
-                    table.insert(data, { name = name, level = entry.level or 0, class = entry.class, zone = entry.zone, guild = entry.guild, seen = entry.lastSeen or 0 })
+                    table.insert(data, { name = name, level = entry.level or 0, class = entry.class, zone = entry.zone, guild = entry.guild, faction = entry.faction, seen = entry.lastSeen or 0 })
                 end
             end
         end
@@ -223,7 +223,20 @@ function Whorkaround:InitGUI()
                 local displayName = d.name:gsub("^%l", string.upper)
                 local displayClass = (d.class or "Unknown"):lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper()..rest end)
                 local classKey = d.class and d.class:upper():gsub(" ", "") or ""
-                local color = RAID_CLASS_COLORS[classKey] or {r=1, g=1, b=1}
+                local color
+                if Whorkaround_Settings and Whorkaround_Settings.factionColors then
+                    -- Faction-based coloring
+                    if d.faction == "Horde" then
+                        color = {r=1, g=0.13, b=0.13}
+                    elseif d.faction == "Alliance" then
+                        color = {r=0, g=0.44, b=0.87}
+                    else
+                        color = {r=0.7, g=0.7, b=0.7}
+                    end
+                else
+                    -- Class-based coloring (default)
+                    color = RAID_CLASS_COLORS[classKey] or {r=1, g=1, b=1}
+                end
                 nameText:SetText(displayName); nameText:SetTextColor(color.r, color.g, color.b)
                 levelText:SetText((d.level or 0) > 0 and d.level or "??")
                 classText:SetText(displayClass)
@@ -409,8 +422,12 @@ function Whorkaround:InitGUI()
     proxyCheck:SetPoint("TOPLEFT", autoOpen, "BOTTOMLEFT", 0, -5)
     components.proxyCheck = proxyCheck
 
+    local factionColorCheck = CreateCheckBox(settings, "Use Faction Colors in Browser", "factionColors", "Colors player names by faction (Horde/Alliance) instead of class in the database browser.")
+    factionColorCheck:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 0, -5)
+    components.factionColorCheck = factionColorCheck
+
     local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1)
-    retentionSlider:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 10, -30)
+    retentionSlider:SetPoint("TOPLEFT", factionColorCheck, "BOTTOMLEFT", 10, -30)
     components.retentionSlider = retentionSlider
 
     -- Stats Display (Moved to bottom edge)
