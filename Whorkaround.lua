@@ -572,6 +572,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if Whorkaround_Settings.outputTab == nil then Whorkaround_Settings.outputTab = "" end
             if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
             if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
+            if Whorkaround_Settings.proxyCooldown == nil then Whorkaround_Settings.proxyCooldown = 5 end
+            if Whorkaround_Settings.proxyOutCombat == nil then Whorkaround_Settings.proxyOutCombat = false end
 
             Whorkaround_DB = Whorkaround_DB or {}
 
@@ -771,8 +773,8 @@ function Whorkaround:Query(name, silent)
     local playerFaction = UnitFactionGroup("player")
     local isEnemy = cached and cached.faction and (cached.faction ~= playerFaction and cached.faction ~= "Unknown")
     
-    -- Normal fresh cache check (Enemies only allowed if super-fresh < 10s to reduce spam)
-    local threshold = isEnemy and 10 or 30
+    -- Normal fresh cache check (Enemies < 10s, Same-faction < 5s)
+    local threshold = isEnemy and 10 or 5
     if cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
         Whorkaround:Log("Fresh cache hit for " .. displayName .. ". Skipping Friends List.", "LOCAL")
         if not silent then

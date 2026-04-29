@@ -178,8 +178,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 -- PROXY LOGIC: Allow proxy if no cache OR cache is older than 60s
                 local hasFreshCache = data and data.level and data.level > 0 and (time() - (data.lastSeen or 0) < 60)
                 
-                if Whorkaround_Settings.allowProxy and isCorrectFaction and not scheduledProxy[cleanName] and not hasFreshCache then
+                local now = GetTime()
+                local proxyCooldown = Whorkaround_Settings.proxyCooldown or 5
+                local canProxy = not (Whorkaround_Settings.proxyOutCombat and InCombatLockdown())
+                local cooldownReady = not Whorkaround.lastProxyTime or (now - Whorkaround.lastProxyTime >= proxyCooldown)
+
+                if Whorkaround_Settings.allowProxy and canProxy and cooldownReady and isCorrectFaction and not scheduledProxy[cleanName] and not hasFreshCache then
                     Whorkaround:Log("Scheduling proxy lookup for: " .. targetName, "PROXY")
+                    Whorkaround.lastProxyTime = now
                     local proxyDelay = 0.1 + (math.random() * 0.7) -- Restored stable proxy timing
                     scheduledProxy[cleanName] = GetTime() + proxyDelay
                     
