@@ -86,7 +86,7 @@ local sliderCount = 0
 local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, tooltip)
     sliderCount = sliderCount + 1
     local slider = CreateFrame("Slider", "WhorkaroundSlider" .. sliderCount, parent, "OptionsSliderTemplate")
-    slider:SetWidth(160); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
+    slider:SetWidth(130); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
     _G[slider:GetName() .. "Low"]:SetText(minVal); _G[slider:GetName() .. "High"]:SetText(maxVal)
     
     local text = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -445,7 +445,7 @@ function Whorkaround:InitGUI()
     end
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
-    autoOpen:SetPoint("TOPLEFT", 210, -55) -- Aligned with tabBox
+    autoOpen:SetPoint("TOPLEFT", 185, -55) -- Closer to center
     components.autoOpen = autoOpen
 
     local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy", "Allows other users to query players through you.")
@@ -484,7 +484,7 @@ function Whorkaround:InitGUI()
     components.proxyCooldown = proxyCooldown
 
     local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks", "Automatically removes players from your local database if they haven't been seen in this many weeks.")
-    retentionSlider:SetPoint("TOPLEFT", 210, -165)
+    retentionSlider:SetPoint("TOPLEFT", 185, -165)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
