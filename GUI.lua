@@ -427,26 +427,26 @@ function Whorkaround:InitGUI()
     retentionSlider:SetPoint("TOPLEFT", factionColorCheck, "BOTTOMLEFT", 10, -30)
     components.retentionSlider = retentionSlider
 
-    -- Footer Status Row (Horizontal grouping)
+    -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 20, 65); statsHeader:SetText("Database Status")
+    statsHeader:SetPoint("BOTTOMLEFT", 20, 85); statsHeader:SetText("Database Status")
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
     
     local statsFactions = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsFactions:SetPoint("LEFT", statsTotal, "RIGHT", 15, 0)
+    statsFactions:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
 
     local statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statsNetwork:SetPoint("LEFT", statsFactions, "RIGHT", 25, 0)
+    statsNetwork:SetPoint("TOPLEFT", statsFactions, "BOTTOMLEFT", 0, -8)
     statsNetwork:SetTextColor(0.53, 0.53, 0.53)
     
     -- Interaction Hitboxes for Tooltips
     local aHit = CreateFrame("Frame", nil, settings)
-    aHit:SetSize(40, 20); aHit:SetPoint("LEFT", statsFactions, "LEFT", 0, 0); aHit:EnableMouse(true)
+    aHit:SetSize(60, 20); aHit:SetPoint("LEFT", statsFactions, "LEFT", 0, 0); aHit:EnableMouse(true)
     
     local hHit = CreateFrame("Frame", nil, settings)
-    hHit:SetSize(40, 20); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 0, 0); hHit:EnableMouse(true)
+    hHit:SetSize(60, 20); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 0, 0); hHit:EnableMouse(true)
 
     -- Maintenance Dropdown (Hidden anchor frame)
     local maintenanceDropDown = CreateFrame("Frame", "WhorkaroundMaintenanceDropDown", settings, "UIDropDownMenuTemplate")
