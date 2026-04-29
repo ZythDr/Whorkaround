@@ -53,13 +53,13 @@ end
 
 local function CreateEditBox(parent, label, setting, tooltip)
     local container = CreateFrame("Frame", nil, parent)
-    container:SetSize(200, 45)
+    container:SetSize(160, 45)
     
     local text = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     text:SetPoint("TOPLEFT", 0, 0); text:SetText(label)
     
     local eb = CreateFrame("EditBox", nil, container, "InputBoxTemplate")
-    eb:SetSize(180, 20); eb:SetPoint("TOPLEFT", 0, -15); eb:SetAutoFocus(false)
+    eb:SetSize(140, 20); eb:SetPoint("TOPLEFT", 0, -12); eb:SetAutoFocus(false)
     
     eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "") end)
     eb:SetScript("OnEnterPressed", function(self)
@@ -82,16 +82,18 @@ local function CreateEditBox(parent, label, setting, tooltip)
     return container
 end
 
-local function CreateSlider(parent, label, setting, minVal, maxVal, step)
-    local slider = CreateFrame("Slider", "WhorkaroundRetentionSlider", parent, "OptionsSliderTemplate")
-    slider:SetWidth(180); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
+local sliderCount = 0
+local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit)
+    sliderCount = sliderCount + 1
+    local slider = CreateFrame("Slider", "WhorkaroundSlider" .. sliderCount, parent, "OptionsSliderTemplate")
+    slider:SetWidth(160); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
     _G[slider:GetName() .. "Low"]:SetText(minVal); _G[slider:GetName() .. "High"]:SetText(maxVal)
     
     local text = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     text:SetPoint("BOTTOM", slider, "TOP", 0, 5)
     
     local function UpdateText(val)
-        text:SetText(string.format("%s: %d %s", label, val, val == 1 and "Week" or "Weeks"))
+        text:SetText(string.format("%s: %d %s", label, val, unit or ""))
     end
 
     slider:SetScript("OnShow", function(self)
@@ -423,7 +425,7 @@ function Whorkaround:InitGUI()
     proxyOutCombat:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 20, 0)
     components.proxyOutCombat = proxyOutCombat
 
-    local proxyCooldown = CreateSlider(settings, "Proxy Cooldown (seconds)", "proxyCooldown", 3, 30, 1)
+    local proxyCooldown = CreateSlider(settings, "Proxy Cooldown", "proxyCooldown", 3, 30, 1, "Sec")
     proxyCooldown:SetPoint("TOPLEFT", proxyOutCombat, "BOTTOMLEFT", -10, -25)
     components.proxyCooldown = proxyCooldown
 
@@ -431,13 +433,13 @@ function Whorkaround:InitGUI()
     factionColorCheck:SetPoint("TOPLEFT", proxyCooldown, "BOTTOMLEFT", -10, -10)
     components.factionColorCheck = factionColorCheck
 
-    local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1)
+    local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1, "Weeks")
     retentionSlider:SetPoint("TOPLEFT", factionColorCheck, "BOTTOMLEFT", 10, -30)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 20, 85); statsHeader:SetText("Database Status")
+    statsHeader:SetPoint("BOTTOMLEFT", 20, 75); statsHeader:SetText("Database Status")
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
