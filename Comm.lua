@@ -43,9 +43,10 @@ end
 
 local function AnnouncePresence()
     if hasAnnounced then return end
+    if not Whorkaround_Settings then return end -- Settings not yet loaded (early /checkcomm call)
     local id = GetChannelName(CH_NAME)
     if not id or id == 0 then return end
-    local proxyFlag = (Whorkaround_Settings and Whorkaround_Settings.allowProxy) and "P" or "N"
+    local proxyFlag = Whorkaround_Settings.allowProxy and "P" or "N"
     local msg = VERSION_PREFIX .. currentVersion .. ":" .. proxyFlag
     if _G.ChatThrottleLib then
         _G.ChatThrottleLib:SendChatMessage("BULK", "Whork", msg, "CHANNEL", nil, id)
@@ -85,6 +86,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
     -- Process scheduled responses (Seniority Suppression logic)
     local now = GetTime()
+    local expiredResponses = {}
     for name, sendTime in pairs(scheduledResponses) do
         if now >= sendTime then
             local data = Whorkaround_DB and Whorkaround_DB[name]
@@ -95,24 +97,26 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                     Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK")
                 end
             end
-            scheduledResponses[name] = nil
+            table.insert(expiredResponses, name)
         end
     end
+    for _, name in ipairs(expiredResponses) do scheduledResponses[name] = nil end
 
     -- Process scheduled proxy lookups
+    local expiredProxy = {}
     for name, sendTime in pairs(scheduledProxy) do
-        if now >= sendTime then
-            if Whorkaround.ProxyQuery then
-                Whorkaround:ProxyQuery(name)
-            end
-            scheduledProxy[name] = nil
-        end
+        if now >= sendTime then table.insert(expiredProxy, name) end
+    end
+    for _, name in ipairs(expiredProxy) do
+        if Whorkaround.ProxyQuery then Whorkaround:ProxyQuery(name) end
+        scheduledProxy[name] = nil
     end
 end)
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
-        joinTimer = 10 
+        joinTimer = 10
+        hasAnnounced = false -- Reset so we re-announce after disconnect/reload
     elseif event == "CHANNEL_UI_UPDATE" then
         CH_ID = GetChannelName(CH_NAME)
     elseif event == "CHAT_MSG_CHANNEL" then
@@ -304,7 +308,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     class = (class or ""):upper()
                     timestamp = timestamp or time()
                     local faction = (f == "A") and "Alliance" or (f == "H" and "Horde" or "Unknown")
-                    if level and level > 0 and level <= 60 and validClasses[class] and validFactions[faction] and zone:len() < 50 then
+                    if level and level > 0 and level <= 60 and validClasses[class] and validFactions[faction] and zone and zone:len() < 50 then
                         if Whorkaround_DB then
                             if not Whorkaround_DB[cleanName] or timestamp > (Whorkaround_DB[cleanName].lastSeen or 0) then
                                 Whorkaround:Log("Incoming network data for " .. name .. " (" .. (isProxy == "P" and "Live" or "Cache") .. ")", "NETWORK")
