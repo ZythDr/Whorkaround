@@ -86,7 +86,7 @@ local sliderCount = 0
 local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, tooltip)
     sliderCount = sliderCount + 1
     local slider = CreateFrame("Slider", "WhorkaroundSlider" .. sliderCount, parent, "OptionsSliderTemplate")
-    slider:SetWidth(130); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
+    slider:SetWidth(125); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
     _G[slider:GetName() .. "Low"]:SetText(minVal); _G[slider:GetName() .. "High"]:SetText(maxVal)
     
     local text = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -437,7 +437,7 @@ function Whorkaround:InitGUI()
     verText:SetPoint("LEFT", header, "RIGHT", 10, 0); verText:SetText("v" .. version); verText:SetTextColor(0.5, 0.5, 0.5)
 
     local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab", "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
-    tabBox:SetPoint("TOPLEFT", 20, -45)
+    tabBox:SetPoint("TOPLEFT", 22, -45)
     components.tabBox = tabBox
     -- Narrower editbox for Tab names
     for _, child in ipairs({tabBox:GetChildren()}) do
@@ -445,11 +445,11 @@ function Whorkaround:InitGUI()
     end
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
-    autoOpen:SetPoint("TOPLEFT", 185, -55) -- Closer to center
+    autoOpen:SetPoint("TOPLEFT", 192, -55) -- Centered in column
     components.autoOpen = autoOpen
 
     local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy", "Allows other users to query players through you.")
-    proxyCheck:SetPoint("TOPLEFT", 20, -100)
+    proxyCheck:SetPoint("TOPLEFT", 22, -100)
     components.proxyCheck = proxyCheck
 
     -- Proxy State Dropdown (Arrow Button)
@@ -480,16 +480,16 @@ function Whorkaround:InitGUI()
     components.proxyModeBtn = proxyModeBtn
 
     local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec", "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
-    proxyCooldown:SetPoint("TOPLEFT", 20, -165) 
+    proxyCooldown:SetPoint("TOPLEFT", 22, -165) 
     components.proxyCooldown = proxyCooldown
 
     local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks", "Automatically removes players from your local database if they haven't been seen in this many weeks.")
-    retentionSlider:SetPoint("TOPLEFT", 185, -165)
+    retentionSlider:SetPoint("TOPLEFT", 192, -165)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 20, 65); statsHeader:SetText("Database Status")
+    statsHeader:SetPoint("BOTTOMLEFT", 22, 65); statsHeader:SetText("Database Status")
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
