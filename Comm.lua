@@ -8,15 +8,21 @@ local REQ_PREFIX = "WKR:"
 local GITHUB_URL = "https://github.com/ZythDr/Whorkaround"
 local currentVersion = GetAddOnMetadata(addonName, "Version") or "1.0"
 local notifiedUpdate = false
+local hasAnnounced = false
 
 local scheduledResponses = {}
 local scheduledProxy = {} -- New: For live friends-list lookups
+
+-- Passive Proxy Peer Tracking
+Whorkaround.proxyPeers = Whorkaround.proxyPeers or {}
+Whorkaround.networkPeers = Whorkaround.networkPeers or {}
 
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("CHANNEL_UI_UPDATE")
 frame:RegisterEvent("CHAT_MSG_CHANNEL")
+frame:RegisterEvent("CHAT_MSG_CHANNEL_LEAVE")
 
 -- Strict Validation Tables
 local validClasses = Whorkaround.validClasses or {
@@ -39,9 +45,24 @@ local function IsNewerVersion(newVer, oldVer)
     return false
 end
 
+local function AnnouncePresence()
+    if hasAnnounced then return end
+    local id = GetChannelName(CH_NAME)
+    if not id or id == 0 then return end
+    local proxyFlag = (Whorkaround_Settings and Whorkaround_Settings.allowProxy) and "P" or "N"
+    local msg = VERSION_PREFIX .. currentVersion .. ":" .. proxyFlag
+    if _G.ChatThrottleLib then
+        _G.ChatThrottleLib:SendChatMessage("BULK", "Whork", msg, "CHANNEL", nil, id)
+    else
+        SendChatMessage(msg, "CHANNEL", nil, id)
+    end
+    hasAnnounced = true
+    Whorkaround:Log("Announced presence: v" .. currentVersion .. " (" .. proxyFlag .. ")", "NETWORK")
+end
+
 local function JoinCommChannel()
     local id, name = GetChannelName(CH_NAME)
-    if id and id > 0 then CH_ID = id; return end
+    if id and id > 0 then CH_ID = id; AnnouncePresence(); return end
     JoinChannelByName(CH_NAME)
     
     local t = 0
@@ -52,6 +73,7 @@ local function JoinCommChannel()
             local newId = GetChannelName(CH_NAME)
             if newId and newId > 0 then
                 CH_ID = newId
+                AnnouncePresence()
                 self:SetScript("OnUpdate", nil)
             end
         end
@@ -101,6 +123,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
         local msg, sender, lang, chNameWithID, sender2, flags, zoneID, chID, chName = ...
         local myName = UnitName("player")
         if chName == CH_NAME and sender and myName and sender:lower() ~= myName:lower() then
+            -- Passively track all WhorkComm users
+            Whorkaround.networkPeers[sender:lower()] = GetTime()
             -- Handle Data Requests (WKR:Faction:Name)
             if msg:sub(1, #REQ_PREFIX) == REQ_PREFIX then
                 local content = msg:sub(#REQ_PREFIX + 1)
@@ -185,6 +209,32 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 Whorkaround.recentRequests = Whorkaround.recentRequests or {}
                 Whorkaround.recentRequests[cleanName] = GetTime()
 
+            -- Handle Version / Presence Announcements (WKV:)
+            elseif msg:sub(1, #VERSION_PREFIX) == VERSION_PREFIX then
+                local rawVer = msg:sub(#VERSION_PREFIX + 1)
+                local verFields = {}
+                for part in rawVer:gmatch("([^:]+)") do table.insert(verFields, part) end
+                local remoteVer = verFields[1]
+                local proxyFlag = verFields[2] -- "P", "N", or nil (old client)
+
+                -- Version update notification
+                if remoteVer and not notifiedUpdate and IsNewerVersion(remoteVer, currentVersion) then
+                    local pfx = "|cff1abc9cWhorkaround Update:|r "
+                    DEFAULT_CHAT_FRAME:AddMessage(pfx .. "A newer version (|cffffd100v" .. remoteVer .. "|r) is available!")
+                    notifiedUpdate = true
+                end
+
+                -- Peer tracking (new clients send P/N, old clients send nothing = treat as non-proxy)
+                local senderLower = sender:lower()
+                Whorkaround.networkPeers[senderLower] = GetTime()
+                if proxyFlag == "P" then
+                    Whorkaround.proxyPeers[senderLower] = GetTime()
+                    Whorkaround:Log("Peer announced: " .. sender .. " v" .. (remoteVer or "?") .. " (Proxy)", "NETWORK")
+                else
+                    Whorkaround.proxyPeers[senderLower] = nil
+                    Whorkaround:Log("Peer announced: " .. sender .. " v" .. (remoteVer or "?") .. " (No Proxy)", "NETWORK")
+                end
+
             -- Handle Data Broadcasts (WK:)
             elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
                 local rawData = msg:sub(#MSG_PREFIX + 1)
@@ -212,6 +262,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVer .. "|r) is available!")
                     notifiedUpdate = true
                 end
+
 
                 -- SMART SUPPRESSION: Only cancel if their data is better or equal to ours
                 if name then 
@@ -273,6 +324,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     end
                 end
             end
+        end
+    end
+    elseif event == "CHAT_MSG_CHANNEL_LEAVE" then
+        local _, sender, _, _, _, _, _, _, chName = ...
+        if chName == CH_NAME and sender then
+            local senderLower = sender:lower()
+            Whorkaround.proxyPeers[senderLower] = nil
+            Whorkaround.networkPeers[senderLower] = nil
+            Whorkaround:Log("Peer left: " .. sender, "NETWORK")
         end
     end
 end)
@@ -338,6 +398,10 @@ function Whorkaround:CheckComm()
     if id and id > 0 then
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel active at index " .. id)
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Current Version: |cffffd100v" .. currentVersion .. "|r")
+        local peerCount, proxyCount = 0, 0
+        for _ in pairs(Whorkaround.networkPeers or {}) do peerCount = peerCount + 1 end
+        for _ in pairs(Whorkaround.proxyPeers or {}) do proxyCount = proxyCount + 1 end
+        DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Network Peers: |cffffd100" .. peerCount .. "|r (|cff9b59b6" .. proxyCount .. " proxies|r)")
     else
         DEFAULT_CHAT_FRAME:AddMessage(prefix .. "Comm channel NOT active. Attempting rejoin...")
         JoinCommChannel()
