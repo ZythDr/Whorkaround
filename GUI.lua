@@ -413,12 +413,12 @@ function Whorkaround:InitGUI()
     tabBox:SetPoint("TOPLEFT", 20, -45)
     components.tabBox = tabBox
 
-    local autoOpen = CreateCheckBox(settings, "Auto-open database browser", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
+    local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
     autoOpen:SetPoint("TOPLEFT", tabBox, "BOTTOMLEFT", 0, -10)
     components.autoOpen = autoOpen
 
-    local proxyCheck = CreateCheckBox(settings, "Enable Proxy Mode", "allowProxy", "Allows other users to query players through you.")
-    proxyCheck:SetPoint("TOPLEFT", autoOpen, "BOTTOMLEFT", 0, -5)
+    local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy", "Allows other users to query players through you.")
+    proxyCheck:SetPoint("LEFT", autoOpen.text, "RIGHT", 40, 0)
     components.proxyCheck = proxyCheck
 
     local proxyOutCombat = CreateCheckBox(settings, "Only out of combat", "proxyOutCombat", "Disables acting as a proxy while you are in combat.")
