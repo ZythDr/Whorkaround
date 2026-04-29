@@ -211,7 +211,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
-    if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "PROXY" then
+    -- ONLY trigger a scan if it's a truly manual user search (Manual, FriendsList) or a fresh Cache/Guild hit from a user search
+    local isUserSearch = (source == "Manual" or source == "FriendsList")
+    if (not level or level == 0) and isUserSearch then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
             local isEnemy = (faction ~= playerFaction)
@@ -260,9 +262,10 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
             local failMsg = "No community data was found."
             if faction == playerFaction then failMsg = "User is offline and no community data was found." end
 
-            for _, frame in ipairs(GetOutputFrames()) do
-                frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: %s%s|r", prefix, name, classColor, displayName, factionColor, faction or "Unknown"), 1, 1, 0)
-                frame:AddMessage(prefix .. failMsg, 1, 1, 0)
+            if source ~= "SILENT" and source ~= "PROXY" and source ~= "TIMEOUT_SILENT" then
+                for _, frame in ipairs(GetOutputFrames()) do
+                    frame:AddMessage(string.format("%sNo community data was found for |Hplayer:%s|h[|r%s%s|r]|h.", prefix, name, classColor, displayName), 1, 1, 0)
+                end
             end
         end
     end
@@ -517,7 +520,9 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm", best.faction, best.timestamp)
             else
                 local data = Whorkaround_DB and Whorkaround_DB[name]
-                Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", false, "TIMEOUT", data and data.faction)
+                if data then
+                    Whorkaround:PrintWhoResult(name, 0, data.class, "Unknown", false, "TIMEOUT", data.faction)
+                end
             end
             Whorkaround.bestNetworkHits[name] = nil
         end
