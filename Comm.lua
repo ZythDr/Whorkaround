@@ -328,7 +328,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 end
             end
         end
-    end
     elseif event == "CHAT_MSG_CHANNEL_LEAVE" then
         local _, sender, _, _, _, _, _, _, chName = ...
         if chName == CH_NAME and sender then
