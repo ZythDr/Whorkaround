@@ -84,6 +84,9 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         if joinTimer <= 0 then JoinCommChannel() end
     end
 
+    -- Skip expensive work when there's nothing to process
+    if joinTimer <= 0 and not next(scheduledResponses) and not next(scheduledProxy) then return end
+
     -- Process scheduled responses (Seniority Suppression logic)
     local now = GetTime()
     local expiredResponses = {}

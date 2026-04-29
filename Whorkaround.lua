@@ -87,37 +87,46 @@ local function SetFriendNoteByName(targetName, note)
     end
 end
 
+-- Color code cache: class never changes per character, safe to cache indefinitely
+local colorCodeCache = {}
+
 -- Improved Class Color Detector (fast-path + cache + faction detection)
 local function GetClassColorCode(className, name)
     if name then
+        local nameLower = name:lower()
+        if colorCodeCache[nameLower] then return colorCodeCache[nameLower] end
+
         local units = { "player", "target", "focus", "mouseover", "party1", "party2", "party3", "party4", "raid1",
             "raid2" }
         for _, unit in ipairs(units) do
             local uName = UnitName(unit)
-            if uName and uName:lower() == name:lower() then
+            if uName and uName:lower() == nameLower then
                 local _, classTag = UnitClass(unit)
                 local race = UnitRace(unit)
                 if classTag then
                     local color = RAID_CLASS_COLORS[classTag]
                     -- Only write to DB if this is new info (avoids inflating lastSeen via chat rendering)
                     if Whorkaround_DB then
-                        local cleanName = name:lower()
-                        local existing = Whorkaround_DB[cleanName]
+                        local existing = Whorkaround_DB[nameLower]
                         if not existing or not existing.class then
-                            Whorkaround_DB[cleanName] = existing or {}
-                            Whorkaround_DB[cleanName].class = classTag
-                            Whorkaround_DB[cleanName].level = UnitLevel(unit)
-                            Whorkaround_DB[cleanName].faction = raceFactionMap[race] or UnitFactionGroup(unit)
-                            Whorkaround_DB[cleanName].lastSeen = time()
+                            Whorkaround_DB[nameLower] = existing or {}
+                            Whorkaround_DB[nameLower].class = classTag
+                            Whorkaround_DB[nameLower].level = UnitLevel(unit)
+                            Whorkaround_DB[nameLower].faction = raceFactionMap[race] or UnitFactionGroup(unit)
+                            Whorkaround_DB[nameLower].lastSeen = time()
                         end
                     end
-                    if color then return string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255) end
+                    if color then
+                        local code = string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
+                        colorCodeCache[nameLower] = code
+                        return code
+                    end
                 end
             end
         end
         if not className and Whorkaround.GetElvUIClass then className = Whorkaround:GetElvUIClass(name) end
         if not className and Whorkaround_DB then
-            local dbKey = name:lower()
+            local dbKey = nameLower
             if Whorkaround_DB[dbKey] and Whorkaround_DB[dbKey].class then
                 className = Whorkaround_DB[dbKey].class
             end
@@ -125,15 +134,26 @@ local function GetClassColorCode(className, name)
     end
     local tag = localizedClassMap[className] or (className and className:upper())
     local color = RAID_CLASS_COLORS[tag]
-    if color then return string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255) end
+    if color then
+        local code = string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
+        if name then colorCodeCache[name:lower()] = code end
+        return code
+    end
     return "|cffffffff"
 end
 
--- Helper to get the correct output chat frames (Supports comma-separated list)
+-- Helper to get the correct output chat frames (cached; invalidated when outputTab setting changes)
+local cachedOutputFrames = nil
+local cachedOutputTab = nil
+
 local function GetOutputFrames()
+    local currentTab = Whorkaround_Settings and Whorkaround_Settings.outputTab or ""
+    if cachedOutputFrames and cachedOutputTab == currentTab then
+        return cachedOutputFrames
+    end
     local frames = {}
-    if Whorkaround_Settings and Whorkaround_Settings.outputTab and Whorkaround_Settings.outputTab ~= "" then
-        for tabName in Whorkaround_Settings.outputTab:gmatch("([^,]+)") do
+    if currentTab ~= "" then
+        for tabName in currentTab:gmatch("([^,]+)") do
             tabName = tabName:gsub("^%s*(.-)%s*$", "%1") -- trim whitespace
             for i = 1, NUM_CHAT_WINDOWS do
                 local name = GetChatWindowInfo(i)
@@ -143,9 +163,9 @@ local function GetOutputFrames()
             end
         end
     end
-    
-    -- Fallback to default if no valid tabs found
     if #frames == 0 then table.insert(frames, DEFAULT_CHAT_FRAME) end
+    cachedOutputFrames = frames
+    cachedOutputTab = currentTab
     return frames
 end
 

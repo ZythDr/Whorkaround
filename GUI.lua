@@ -605,7 +605,8 @@ function Whorkaround:InitGUI()
     hooksecurefunc(WhoFrameWhoButton, "Show", Lockdown)
 
     WhoFrame:HookScript("OnUpdate", function(self)
-        if tab2 and tab2:GetChecked() then Lockdown() end
+        if not tab2 or not tab2:GetChecked() then return end
+        Lockdown()
     end)
 
     Whorkaround.SetGUIState = function(show) 
