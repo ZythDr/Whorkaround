@@ -24,12 +24,8 @@ frame:RegisterEvent("CHANNEL_UI_UPDATE")
 frame:RegisterEvent("CHAT_MSG_CHANNEL")
 frame:RegisterEvent("CHAT_MSG_CHANNEL_LEAVE")
 
--- Strict Validation Tables
-local validClasses = Whorkaround.validClasses or {
-    ["WARRIOR"] = true, ["PALADIN"] = true, ["HUNTER"] = true, ["ROGUE"] = true,
-    ["PRIEST"] = true, ["SHAMAN"] = true, ["MAGE"] = true, ["WARLOCK"] = true,
-    ["DRUID"] = true,
-}
+-- Strict Validation Tables (Using shared table from core)
+local validClasses = Whorkaround.validClasses
 local validFactions = { ["Alliance"] = true, ["Horde"] = true }
 
 -- Version comparison

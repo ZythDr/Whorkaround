@@ -320,7 +320,7 @@ function Whorkaround:TryAllOtherSources(name, silent)
     end
     local data = Whorkaround_DB and Whorkaround_DB[cleanName]
     if data and data.class then
-        if not silent then Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", true, "Cache",
+        if not silent then Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "Cache",
                 data.faction) end
         return true
     end
@@ -435,8 +435,8 @@ local function SystemMessageFilter(self, event, msg)
     if msg == ERR_FRIEND_NOT_FOUND then
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             local elapsed = GetTime() - (type(startTime) == "number" and startTime or GetTime())
-            if (type(startTime) == "number" or startTime == "PROXY") and (elapsed < 2 or startTime == "PROXY") then
-                if startTime ~= "PROXY" then Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual") end
+            if (type(startTime) == "number" or startTime == "PROXY" or startTime == "SILENT") and (elapsed < 2 or startTime == "PROXY" or startTime == "SILENT") then
+                if startTime ~= "PROXY" and startTime ~= "SILENT" then Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual") end
                 Whorkaround.pendingQueries[name] = nil
                 return true
             end
@@ -481,11 +481,29 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             end
         end
 
-        -- RECENT REMOVALS CLEANUP (Every 5 seconds)
+        -- RECENT REMOVALS CLEANUP (Every 10 seconds)
         for name, removalTime in pairs(Whorkaround.removingFriends) do
             if (now - removalTime) > 10 then
                 Whorkaround.removingFriends[name] = nil
             end
+        end
+
+        -- PERIODIC THROTTLE SWEEP (Every 5 minutes)
+        self.sweepTimer = (self.sweepTimer or 0) + elapsed
+        if self.sweepTimer > 300 then
+            self.sweepTimer = 0
+            Whorkaround:Log("Performing periodic memory sweep...", "CLEANUP")
+            local function SweepTable(t, expiry)
+                if not t then return end
+                for k, v in pairs(t) do
+                    if (now - v) > expiry then t[k] = nil end
+                end
+            end
+            SweepTable(Whorkaround.sightingThrottle, 30)
+            SweepTable(Whorkaround.broadcastThrottle, 60)
+            SweepTable(Whorkaround.queryThrottle, 300)
+            SweepTable(Whorkaround.recentRequests, 30)
+            SweepTable(Whorkaround.addedSuppression, 10)
         end
 
         -- SMART GHOST CLEANUP: Only runs 5s after the last addon action (query/proxy)
