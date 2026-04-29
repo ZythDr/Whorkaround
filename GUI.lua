@@ -149,8 +149,6 @@ function Whorkaround:InitGUI()
         return container
     end
 
-function Whorkaround:InitGUI()
-    local components = {}
     local tab1, tab2, settings, browserFactionColors
 
     -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
