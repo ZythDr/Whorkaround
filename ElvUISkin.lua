@@ -6,7 +6,7 @@ function Whorkaround:SkinGUIComponents(components)
     local E, L, V, P, G = unpack(ElvUI)
     local S = E:GetModule("Skins")
 
-    if components.clearBtn then S:HandleButton(components.clearBtn) end
+    if components.maintenanceMenu then S:HandleDropDownBox(components.maintenanceMenu) end
     if components.retentionSlider then S:HandleSliderFrame(components.retentionSlider) end
     
     if components.tabBox then
