@@ -427,26 +427,45 @@ function Whorkaround:InitGUI()
     retentionSlider:SetPoint("TOPLEFT", factionColorCheck, "BOTTOMLEFT", 10, -30)
     components.retentionSlider = retentionSlider
 
-    -- Stats Display (Moved to bottom edge)
+    -- Footer Status Row (Horizontal grouping)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 20, 40); statsHeader:SetText("Database Statistics")
+    statsHeader:SetPoint("BOTTOMLEFT", 20, 65); statsHeader:SetText("Database Status")
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -2); statsTotal:SetTextColor(0.53, 0.53, 0.53)
+    statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
     
     local statsFactions = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsFactions:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
+    statsFactions:SetPoint("LEFT", statsTotal, "RIGHT", 15, 0)
 
     local statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statsNetwork:SetPoint("TOPLEFT", statsFactions, "BOTTOMLEFT", 0, -8)
+    statsNetwork:SetPoint("LEFT", statsFactions, "RIGHT", 25, 0)
     statsNetwork:SetTextColor(0.53, 0.53, 0.53)
     
     -- Interaction Hitboxes for Tooltips
     local aHit = CreateFrame("Frame", nil, settings)
-    aHit:SetSize(90, 30); aHit:SetPoint("LEFT", statsFactions, "LEFT", -10, 0); aHit:EnableMouse(true)
+    aHit:SetSize(40, 20); aHit:SetPoint("LEFT", statsFactions, "LEFT", 0, 0); aHit:EnableMouse(true)
     
     local hHit = CreateFrame("Frame", nil, settings)
-    hHit:SetSize(90, 30); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 10, 0); hHit:EnableMouse(true)
+    hHit:SetSize(40, 20); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 0, 0); hHit:EnableMouse(true)
+
+    -- Maintenance Dropdown (Replacing the big button)
+    local maintenanceMenu = CreateFrame("Frame", "WhorkaroundMaintenanceMenu", settings, "UIDropDownMenuTemplate")
+    maintenanceMenu:SetPoint("BOTTOMRIGHT", 0, 10)
+    UIDropDownMenu_SetWidth(maintenanceMenu, 110)
+    UIDropDownMenu_SetText(maintenanceMenu, "Maintenance")
+    
+    UIDropDownMenu_Initialize(maintenanceMenu, function(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = "|cffff2020Clear Database|r"
+        info.notCheckable = true
+        info.func = function() StaticPopup_Show("WHORKAROUND_CONFIRM_CLEAR") end
+        UIDropDownMenu_AddButton(info)
+        
+        info.text = "Close Menu"
+        info.func = function() CloseDropDownMenus() end
+        UIDropDownMenu_AddButton(info)
+    end)
+    components.maintenanceMenu = maintenanceMenu
 
     local function SetStatTooltip(frame, label, color, count)
         frame:SetScript("OnEnter", function(self)
@@ -477,19 +496,17 @@ function Whorkaround:InitGUI()
         for _ in pairs(Whorkaround.networkPeers or {}) do peerCount = peerCount + 1 end
         for _ in pairs(Whorkaround.proxyPeers or {}) do proxyCount = proxyCount + 1 end
         if peerCount > 0 then
-            statsNetwork:SetText(string.format("Network: %d peer%s seen  (|cff9b59b6%d prox%s|r)",
+            statsNetwork:SetText(string.format("Network: %d peer%s seen (%d prox%s)",
                 peerCount, peerCount == 1 and "" or "s",
                 proxyCount, proxyCount == 1 and "y" or "ies"))
         else
-            statsNetwork:SetText("Network: No peers seen this session")
+            statsNetwork:SetText("Network: Searching...")
         end
     end
     Whorkaround.UpdateStats = UpdateStats
     settings:SetScript("OnShow", UpdateStats)
 
-    local clearBtn = CreateButton(settings, "Clear Database", 130, 22)
-    clearBtn:SetPoint("BOTTOMRIGHT", -10, 10)
-    components.clearBtn = clearBtn
+
 
     -- Notify skinning module about local components
     if Whorkaround.SkinGUIComponents then
@@ -588,7 +605,7 @@ function Whorkaround:InitGUI()
         SyncUI()
     end)
 
-    clearBtn:SetScript("OnClick", function() StaticPopup_Show("WHORKAROUND_CONFIRM_CLEAR") end)
+
     
     Whorkaround.ToggleButton = tab1
     
