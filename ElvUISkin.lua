@@ -7,15 +7,15 @@ function Whorkaround:SkinGUIComponents(components)
     local S = E:GetModule("Skins")
 
     if components.maintenanceBtn then S:HandleNextPrevButton(components.maintenanceBtn, "down") end
-    if components.retentionSlider then S:HandleSliderFrame(components.retentionSlider) end
     
     if components.tabBox then
         -- tabBox is a container, find the EditBox inside
         for _, child in ipairs({components.tabBox:GetChildren()}) do
             if child:IsObjectType("EditBox") then 
                 S:HandleEditBox(child)
-                child:StripTextures()
-                child:CreateBackdrop("Default")
+                if child.backdrop then
+                    child.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
+                end
             end
         end
     end
@@ -26,7 +26,18 @@ function Whorkaround:SkinGUIComponents(components)
     if components.proxyOutCombat then S:HandleCheckBox(components.proxyOutCombat) end
     if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
     
-    if components.proxyCooldown then S:HandleSliderFrame(components.proxyCooldown) end
+    if components.proxyCooldown then 
+        S:HandleSliderFrame(components.proxyCooldown) 
+        if components.proxyCooldown.backdrop then
+            components.proxyCooldown.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
+        end
+    end
+    if components.retentionSlider then 
+        S:HandleSliderFrame(components.retentionSlider) 
+        if components.retentionSlider.backdrop then
+            components.retentionSlider.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
+        end
+    end
 end
 
 function Whorkaround:ApplyElvUISkin()
