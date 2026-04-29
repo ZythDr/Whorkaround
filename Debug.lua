@@ -17,13 +17,18 @@ function Whorkaround:Log(msg, category)
     local catPrefix = COLORS[category or "SYSTEM"] or COLORS.SYSTEM
     
     local chat = DEFAULT_CHAT_FRAME
-    if Whorkaround_Settings and Whorkaround_Settings.outputTab then
-        for i = 1, NUM_CHAT_WINDOWS do
-            local name = GetChatWindowInfo(i)
-            if name and name:lower() == Whorkaround_Settings.outputTab:lower() then
-                chat = _G["ChatFrame"..i]
-                break
+    if Whorkaround_Settings and Whorkaround_Settings.outputTab and Whorkaround_Settings.outputTab ~= "" then
+        local found = false
+        for tabName in Whorkaround_Settings.outputTab:gmatch("([^,]+)") do
+            tabName = tabName:gsub("^%s*(.-)%s*$", "%1"):lower()
+            for i = 1, NUM_CHAT_WINDOWS do
+                local name = GetChatWindowInfo(i)
+                if name and name:lower() == tabName then
+                    chat = _G["ChatFrame"..i]
+                    found = true; break
+                end
             end
+            if found then break end
         end
     end
     
