@@ -306,6 +306,13 @@ function Whorkaround:InitGUI()
         Whorkaround_WhoList_Update()
     end
     
+    -- Refresh browser immediately when toggling faction colors
+    browserFactionColors:HookScript("OnClick", function()
+        if tab1 and tab1:GetChecked() then
+            Whorkaround_WhoList_Update()
+        end
+    end)
+    
     local function CycleSort(key)
         if currentSortKey == key then
             if currentSortOrder == "ASC" then currentSortOrder = "DESC" else currentSortKey = "seen"; currentSortOrder = "DESC" end
@@ -432,6 +439,10 @@ function Whorkaround:InitGUI()
     local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab", "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
     tabBox:SetPoint("TOPLEFT", 20, -45)
     components.tabBox = tabBox
+    -- Narrower editbox for Tab names
+    for _, child in ipairs({tabBox:GetChildren()}) do
+        if child:IsObjectType("EditBox") then child:SetWidth(100) end
+    end
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
     autoOpen:SetPoint("TOPLEFT", 210, -55) -- Aligned with tabBox
@@ -478,7 +489,7 @@ function Whorkaround:InitGUI()
 
     -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 20, 75); statsHeader:SetText("Database Status")
+    statsHeader:SetPoint("BOTTOMLEFT", 20, 65); statsHeader:SetText("Database Status")
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
