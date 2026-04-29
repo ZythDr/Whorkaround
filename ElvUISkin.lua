@@ -7,6 +7,7 @@ function Whorkaround:SkinGUIComponents(components)
     local S = E:GetModule("Skins")
 
     if components.maintenanceBtn then S:HandleNextPrevButton(components.maintenanceBtn, "down") end
+    if components.proxyModeBtn then S:HandleNextPrevButton(components.proxyModeBtn, "down") end
     
     if components.tabBox then
         -- tabBox is a container, find the EditBox inside
@@ -26,7 +27,6 @@ function Whorkaround:SkinGUIComponents(components)
     if components.browserFactionColors then S:HandleCheckBox(components.browserFactionColors) end
     if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
     
-    if components.proxyModeMenu then S:HandleDropDownBox(components.proxyModeMenu) end
     
     if components.proxyCooldown then 
         S:HandleSliderFrame(components.proxyCooldown) 
