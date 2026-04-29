@@ -448,13 +448,10 @@ function Whorkaround:InitGUI()
     local hHit = CreateFrame("Frame", nil, settings)
     hHit:SetSize(40, 20); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 0, 0); hHit:EnableMouse(true)
 
-    -- Maintenance Dropdown (Replacing the big button)
-    local maintenanceMenu = CreateFrame("Frame", "WhorkaroundMaintenanceMenu", settings, "UIDropDownMenuTemplate")
-    maintenanceMenu:SetPoint("BOTTOMRIGHT", 0, 10)
-    UIDropDownMenu_SetWidth(maintenanceMenu, 110)
-    UIDropDownMenu_SetText(maintenanceMenu, "Maintenance")
+    -- Maintenance Dropdown (Hidden anchor frame)
+    local maintenanceDropDown = CreateFrame("Frame", "WhorkaroundMaintenanceDropDown", settings, "UIDropDownMenuTemplate")
     
-    UIDropDownMenu_Initialize(maintenanceMenu, function(self, level)
+    UIDropDownMenu_Initialize(maintenanceDropDown, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
         info.text = "|cffff2020Clear Database|r"
         info.notCheckable = true
@@ -462,10 +459,31 @@ function Whorkaround:InitGUI()
         UIDropDownMenu_AddButton(info)
         
         info.text = "Close Menu"
+        info.notCheckable = true
         info.func = function() CloseDropDownMenus() end
         UIDropDownMenu_AddButton(info)
+    end, "MENU")
+
+    -- The "Arrow" Button
+    local maintenanceBtn = CreateFrame("Button", nil, settings)
+    maintenanceBtn:SetSize(24, 24)
+    maintenanceBtn:SetPoint("LEFT", statsNetwork, "RIGHT", 10, 0)
+    maintenanceBtn:SetNormalTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+    maintenanceBtn:GetNormalTexture():SetRotation(math.rad(-90)) -- Point down
+    
+    maintenanceBtn:SetScript("OnClick", function(self)
+        ToggleDropDownMenu(1, nil, maintenanceDropDown, self, 0, 0)
     end)
-    components.maintenanceMenu = maintenanceMenu
+    
+    maintenanceBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Database Maintenance", 1, 1, 1)
+        GameTooltip:AddLine("Click to open management options.", nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    maintenanceBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    components.maintenanceBtn = maintenanceBtn
 
     local function SetStatTooltip(frame, label, color, count)
         frame:SetScript("OnEnter", function(self)
