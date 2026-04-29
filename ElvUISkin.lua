@@ -23,6 +23,7 @@ function Whorkaround:SkinGUIComponents(components)
     -- Checkboxes
     if components.autoOpen then S:HandleCheckBox(components.autoOpen) end
     if components.proxyCheck then S:HandleCheckBox(components.proxyCheck) end
+    if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
 end
 
 function Whorkaround:ApplyElvUISkin()

@@ -403,14 +403,14 @@ function Whorkaround:Sighting(unit)
     local faction = raceFactionMap[raceToken] or UnitFactionGroup(unit)
     local zone = GetRealZoneText()
     if Whorkaround_DB and level and level > 0 then
-        Whorkaround_DB[cleanName] = {
-            class = class,
-            level = level,
-            zone = zone,
-            faction = faction,
-            lastSeen = time(),
-            source = "Sighting"
-        }
+        local existing = Whorkaround_DB[cleanName] or {}
+        existing.class = class           -- Always authoritative from unit API
+        existing.level = level           -- Always authoritative
+        existing.faction = faction       -- Always authoritative
+        existing.zone = zone             -- Sighting zone = your zone (player is nearby)
+        existing.lastSeen = time()
+        existing.source = "Sighting"
+        Whorkaround_DB[cleanName] = existing
         if Whorkaround.SyncBrowser then Whorkaround:SyncBrowser(false) end
     end
 end
@@ -507,20 +507,25 @@ frame:SetScript("OnEvent", function(self, event, ...)
             Whorkaround_DB = Whorkaround_DB or {}
             
             -- DB MIGRATION: Convert all keys to lowercase and PURGE invalid classes
-            local migratedDB = {}
-            for k, v in pairs(Whorkaround_DB) do
-                local class = v.class and v.class:upper()
-                if validClasses[class] then
-                    migratedDB[k:lower()] = v
+            -- Only run if migration hasn't been completed yet
+            if not Whorkaround_Settings.dbVersion or Whorkaround_Settings.dbVersion < 2 then
+                local migratedDB = {}
+                for k, v in pairs(Whorkaround_DB) do
+                    local class = v.class and v.class:upper()
+                    if validClasses[class] then
+                        migratedDB[k:lower()] = v
+                    end
                 end
+                Whorkaround_DB = migratedDB
+                Whorkaround_Settings.dbVersion = 2
             end
-            Whorkaround_DB = migratedDB
             
             Whorkaround_Settings = Whorkaround_Settings or {}
             if Whorkaround_Settings.overrideWho == nil then Whorkaround_Settings.overrideWho = true end
             if Whorkaround_Settings.allowProxy == nil then Whorkaround_Settings.allowProxy = false end
             if Whorkaround_Settings.outputTab == nil then Whorkaround_Settings.outputTab = "" end
             if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
+            if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
             Whorkaround:CleanGhostFriends()
             Whorkaround:PurgeOldData()
             if Whorkaround_DB then
