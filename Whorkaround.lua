@@ -573,7 +573,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
             if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
             if Whorkaround_Settings.proxyCooldown == nil then Whorkaround_Settings.proxyCooldown = 5 end
-            if Whorkaround_Settings.proxyOutCombat == nil then Whorkaround_Settings.proxyOutCombat = false end
+            if Whorkaround_Settings.proxyOutCombat == nil then Whorkaround_Settings.proxyOutCombat = true end
 
             Whorkaround_DB = Whorkaround_DB or {}
 

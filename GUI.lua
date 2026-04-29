@@ -83,7 +83,7 @@ local function CreateEditBox(parent, label, setting, tooltip)
 end
 
 local sliderCount = 0
-local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit)
+local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, tooltip)
     sliderCount = sliderCount + 1
     local slider = CreateFrame("Slider", "WhorkaroundSlider" .. sliderCount, parent, "OptionsSliderTemplate")
     slider:SetWidth(160); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
@@ -102,10 +102,20 @@ local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit)
     end)
 
     slider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value + 0.5)
-        Whorkaround_Settings[setting] = value
-        UpdateText(value)
+        local val = math.floor(value + 0.5)
+        Whorkaround_Settings[setting] = val
+        UpdateText(val)
     end)
+    
+    if tooltip then
+        slider:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(label, 1, 1, 1)
+            GameTooltip:AddLine(tooltip, nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        slider:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
     
     return slider
 end
@@ -140,6 +150,12 @@ function Whorkaround:InitGUI()
     end
 
     local tab1, tab2
+
+    -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
+    local browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors", "Colors names by faction in the browser.")
+    browserFactionColors:SetPoint("BOTTOMLEFT", WhoFrame, "BOTTOMLEFT", 100, 25)
+    browserFactionColors:Hide() 
+    components.browserFactionColors = browserFactionColors
 
     -- Settings Panel
     local settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
@@ -341,13 +357,16 @@ function Whorkaround:InitGUI()
 
         if settingsActive then
             settings:Show()
+            browserFactionColors:Hide()
             WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4:Hide()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
         else
             settings:Hide()
+            browserFactionColors:Hide()
             if browserActive then
+                browserFactionColors:Show()
                 if not nativeScrollScript then nativeScrollScript = WhoListScrollFrame:GetScript("OnVerticalScroll") end
                 WhoListScrollFrame:SetScript("OnVerticalScroll", Whorkaround_OnVerticalScroll)
                 
@@ -421,20 +440,38 @@ function Whorkaround:InitGUI()
     proxyCheck:SetPoint("TOPLEFT", 20, -100)
     components.proxyCheck = proxyCheck
 
-    local proxyOutCombat = CreateCheckBox(settings, "Only out of combat", "proxyOutCombat", "Disables acting as a proxy while you are in combat.")
-    proxyOutCombat:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 20, 0)
-    components.proxyOutCombat = proxyOutCombat
+    -- Proxy State Dropdown
+    local proxyModeMenu = CreateFrame("Frame", "WhorkaroundProxyModeMenu", settings, "UIDropDownMenuTemplate")
+    proxyModeMenu:SetPoint("LEFT", proxyCheck.text, "RIGHT", -10, -2)
+    UIDropDownMenu_SetWidth(proxyModeMenu, 100)
+    
+    UIDropDownMenu_Initialize(proxyModeMenu, function(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = "Always"
+        info.func = function() 
+            Whorkaround_Settings.proxyOutCombat = false
+            UIDropDownMenu_SetText(proxyModeMenu, "Always")
+        end
+        info.checked = (Whorkaround_Settings.proxyOutCombat == false)
+        UIDropDownMenu_AddButton(info)
+        
+        info.text = "Out of Combat"
+        info.func = function() 
+            Whorkaround_Settings.proxyOutCombat = true
+            UIDropDownMenu_SetText(proxyModeMenu, "Out of Combat")
+        end
+        info.checked = (Whorkaround_Settings.proxyOutCombat == true)
+        UIDropDownMenu_AddButton(info)
+    end)
+    UIDropDownMenu_SetText(proxyModeMenu, Whorkaround_Settings.proxyOutCombat and "Out of Combat" or "Always")
+    components.proxyModeMenu = proxyModeMenu
 
-    local proxyCooldown = CreateSlider(settings, "Proxy Cooldown", "proxyCooldown", 3, 30, 1, "Sec")
+    local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec", "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
     proxyCooldown:SetPoint("TOPLEFT", 210, -115) -- Aligned with proxyCheck
     components.proxyCooldown = proxyCooldown
 
-    local factionColorCheck = CreateCheckBox(settings, "Use Faction Colors", "factionColors", "Colors player names by faction (Horde/Alliance) instead of class in the database browser.")
-    factionColorCheck:SetPoint("TOPLEFT", 20, -170)
-    components.factionColorCheck = factionColorCheck
-
-    local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1, "Weeks")
-    retentionSlider:SetPoint("TOPLEFT", 210, -185) -- Aligned with factionColor
+    local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks", "Automatically removes players from your local database if they haven't been seen in this many weeks.")
+    retentionSlider:SetPoint("TOPLEFT", 210, -185)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
