@@ -414,11 +414,11 @@ function Whorkaround:InitGUI()
     components.tabBox = tabBox
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
-    autoOpen:SetPoint("TOPLEFT", tabBox, "BOTTOMLEFT", 0, -10)
+    autoOpen:SetPoint("TOPLEFT", 210, -55) -- Aligned with tabBox
     components.autoOpen = autoOpen
 
     local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy", "Allows other users to query players through you.")
-    proxyCheck:SetPoint("LEFT", autoOpen.text, "RIGHT", 40, 0)
+    proxyCheck:SetPoint("TOPLEFT", 20, -100)
     components.proxyCheck = proxyCheck
 
     local proxyOutCombat = CreateCheckBox(settings, "Only out of combat", "proxyOutCombat", "Disables acting as a proxy while you are in combat.")
@@ -426,15 +426,15 @@ function Whorkaround:InitGUI()
     components.proxyOutCombat = proxyOutCombat
 
     local proxyCooldown = CreateSlider(settings, "Proxy Cooldown", "proxyCooldown", 3, 30, 1, "Sec")
-    proxyCooldown:SetPoint("TOPLEFT", proxyOutCombat, "BOTTOMLEFT", -10, -25)
+    proxyCooldown:SetPoint("TOPLEFT", 210, -115) -- Aligned with proxyCheck
     components.proxyCooldown = proxyCooldown
 
-    local factionColorCheck = CreateCheckBox(settings, "Use Faction Colors in Browser", "factionColors", "Colors player names by faction (Horde/Alliance) instead of class in the database browser.")
-    factionColorCheck:SetPoint("TOPLEFT", proxyCooldown, "BOTTOMLEFT", -10, -10)
+    local factionColorCheck = CreateCheckBox(settings, "Use Faction Colors", "factionColors", "Colors player names by faction (Horde/Alliance) instead of class in the database browser.")
+    factionColorCheck:SetPoint("TOPLEFT", 20, -170)
     components.factionColorCheck = factionColorCheck
 
     local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1, "Weeks")
-    retentionSlider:SetPoint("TOPLEFT", factionColorCheck, "BOTTOMLEFT", 10, -30)
+    retentionSlider:SetPoint("TOPLEFT", 210, -185) -- Aligned with factionColor
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
