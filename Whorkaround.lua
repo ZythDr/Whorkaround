@@ -8,7 +8,7 @@ Whorkaround.bestNetworkHits = Whorkaround.bestNetworkHits or {}
 Whorkaround.queryThrottle = Whorkaround.queryThrottle or {}
 Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
 Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
-Whorkaround.printThrottle = Whorkaround.printThrottle or {}
+
 
 
 -- Class lookup table for 3.3.5 (Project Epoch: No Death Knights)
@@ -99,13 +99,17 @@ local function GetClassColorCode(className, name)
                 local race = UnitRace(unit)
                 if classTag then
                     local color = RAID_CLASS_COLORS[classTag]
+                    -- Only write to DB if this is new info (avoids inflating lastSeen via chat rendering)
                     if Whorkaround_DB then
                         local cleanName = name:lower()
-                        Whorkaround_DB[cleanName] = Whorkaround_DB[cleanName] or {}
-                        Whorkaround_DB[cleanName].class = classTag
-                        Whorkaround_DB[cleanName].level = UnitLevel(unit)
-                        Whorkaround_DB[cleanName].faction = raceFactionMap[race] or UnitFactionGroup(unit)
-                        Whorkaround_DB[cleanName].lastSeen = time()
+                        local existing = Whorkaround_DB[cleanName]
+                        if not existing or not existing.class then
+                            Whorkaround_DB[cleanName] = existing or {}
+                            Whorkaround_DB[cleanName].class = classTag
+                            Whorkaround_DB[cleanName].level = UnitLevel(unit)
+                            Whorkaround_DB[cleanName].faction = raceFactionMap[race] or UnitFactionGroup(unit)
+                            Whorkaround_DB[cleanName].lastSeen = time()
+                        end
                     end
                     if color then return string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255) end
                 end
@@ -453,51 +457,67 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     self.timer = (self.timer or 0) + elapsed
     if self.timer > 0.1 then
         self.timer = 0; local now = GetTime()
+        -- Collect expired pendingQueries to avoid mutating during pairs()
+        local expiredQueries = {}
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             if type(startTime) == "number" then
                 local diff = now - startTime
                 if diff > 1.0 and Whorkaround.pendingQueries[name] ~= "TIMEOUT" and Whorkaround.pendingQueries[name] ~= "PROXY" then
                     Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
-                    Whorkaround.pendingQueries[name] = "TIMEOUT"; Whorkaround.removingFriends[name] = GetTime(); RemoveFriendByName(name)
+                    Whorkaround.pendingQueries[name] = "TIMEOUT"
+                    Whorkaround.removingFriends[name] = GetTime()
+                    RemoveFriendByName(name)
                 end
                 if diff > 5 then
-                    Whorkaround.pendingQueries[name] = nil; Whorkaround.addedSuppression[name] = nil; Whorkaround.removingFriends[name] = nil
+                    table.insert(expiredQueries, name)
                 end
             end
         end
-        -- NETWORK SCAN TIMEOUT
+        for _, name in ipairs(expiredQueries) do
+            Whorkaround.pendingQueries[name] = nil
+            Whorkaround.addedSuppression[name] = nil
+            Whorkaround.removingFriends[name] = nil
+        end
+
+        -- NETWORK SCAN TIMEOUT (safe: collect first, then remove)
+        local expiredWaiters = {}
         for name, startTime in pairs(Whorkaround.networkWaiters) do
             if (now - startTime) > 6 then
-                Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
-                Whorkaround.networkWaiters[name] = nil
-                local best = Whorkaround.bestNetworkHits[name]
-                if best then
-                    Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm", best.faction, best.timestamp)
-                else
-                    local data = Whorkaround_DB and Whorkaround_DB[name]
-                    Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", true, "TIMEOUT", data and data.faction)
-                end
-                Whorkaround.bestNetworkHits[name] = nil
+                table.insert(expiredWaiters, name)
             end
         end
+        for _, name in ipairs(expiredWaiters) do
+            Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
+            Whorkaround.networkWaiters[name] = nil
+            local best = Whorkaround.bestNetworkHits[name]
+            if best then
+                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm", best.faction, best.timestamp)
+            else
+                local data = Whorkaround_DB and Whorkaround_DB[name]
+                Whorkaround:PrintWhoResult(name, 0, data and data.class, "Unknown", false, "TIMEOUT", data and data.faction)
+            end
+            Whorkaround.bestNetworkHits[name] = nil
+        end
 
-        -- RECENT REMOVALS CLEANUP (Every 10 seconds)
+        -- RECENT REMOVALS CLEANUP
+        local expiredRemovals = {}
         for name, removalTime in pairs(Whorkaround.removingFriends) do
-            if (now - removalTime) > 10 then
-                Whorkaround.removingFriends[name] = nil
-            end
+            if (now - removalTime) > 10 then table.insert(expiredRemovals, name) end
         end
+        for _, name in ipairs(expiredRemovals) do Whorkaround.removingFriends[name] = nil end
 
-        -- PERIODIC THROTTLE SWEEP (Every 5 minutes)
-        self.sweepTimer = (self.sweepTimer or 0) + elapsed
-        if self.sweepTimer > 300 then
-            self.sweepTimer = 0
+        -- PERIODIC THROTTLE SWEEP (Every 5 minutes via wall-clock)
+        if not self.nextSweep then self.nextSweep = now + 300 end
+        if now >= self.nextSweep then
+            self.nextSweep = now + 300
             Whorkaround:Log("Performing periodic memory sweep...", "CLEANUP")
             local function SweepTable(t, expiry)
                 if not t then return end
+                local toRemove = {}
                 for k, v in pairs(t) do
-                    if (now - v) > expiry then t[k] = nil end
+                    if (now - v) > expiry then table.insert(toRemove, k) end
                 end
+                for _, k in ipairs(toRemove) do t[k] = nil end
             end
             SweepTable(Whorkaround.sightingThrottle, 30)
             SweepTable(Whorkaround.broadcastThrottle, 60)
@@ -522,10 +542,18 @@ frame:SetScript("OnEvent", function(self, event, ...)
         Whorkaround:Sighting("target")
     elseif event == "ADDON_LOADED" then
         local name = ...; if name == "Whorkaround" then
+            -- MUST initialize Settings first — migration block reads it
+            Whorkaround_Settings = Whorkaround_Settings or {}
+            if Whorkaround_Settings.overrideWho == nil then Whorkaround_Settings.overrideWho = true end
+            if Whorkaround_Settings.allowProxy == nil then Whorkaround_Settings.allowProxy = false end
+            if Whorkaround_Settings.outputTab == nil then Whorkaround_Settings.outputTab = "" end
+            if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
+            if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
+
             Whorkaround_DB = Whorkaround_DB or {}
-            
+
             -- DB MIGRATION: Convert all keys to lowercase and PURGE invalid classes
-            -- Only run if migration hasn't been completed yet
+            -- Only run once (guarded by version flag)
             if not Whorkaround_Settings.dbVersion or Whorkaround_Settings.dbVersion < 2 then
                 local migratedDB = {}
                 for k, v in pairs(Whorkaround_DB) do
@@ -537,13 +565,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 Whorkaround_DB = migratedDB
                 Whorkaround_Settings.dbVersion = 2
             end
-            
-            Whorkaround_Settings = Whorkaround_Settings or {}
-            if Whorkaround_Settings.overrideWho == nil then Whorkaround_Settings.overrideWho = true end
-            if Whorkaround_Settings.allowProxy == nil then Whorkaround_Settings.allowProxy = false end
-            if Whorkaround_Settings.outputTab == nil then Whorkaround_Settings.outputTab = "" end
-            if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
-            if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
             Whorkaround:CleanGhostFriends()
             Whorkaround:PurgeOldData()
             if Whorkaround_DB then

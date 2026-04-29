@@ -283,11 +283,7 @@ function Whorkaround:InitGUI()
 
     Whorkaround.SyncBrowser = function(force)
         if not tab1 or not tab1:GetChecked() or not WhoFrame:IsVisible() then return end
-        
-        -- Only refresh if forced (new player discovery/query result)
-        if force then
-            Whorkaround_WhoList_Update()
-        end
+        Whorkaround_WhoList_Update()
     end
     
     local function CycleSort(key)
@@ -345,7 +341,7 @@ function Whorkaround:InitGUI()
             WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4:Hide()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
-            WhoFrameTotals:Hide(); if liveCheck then liveCheck:Hide() end
+            WhoFrameTotals:Hide()
         else
             settings:Hide()
             if browserActive then
@@ -375,7 +371,7 @@ function Whorkaround:InitGUI()
                 WhoListScrollFrameScrollBar:Show();
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
-                WhoFrameTotals:Show(); if liveCheck then liveCheck:Show() end
+                WhoFrameTotals:Show()
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
@@ -393,7 +389,7 @@ function Whorkaround:InitGUI()
                 WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4:Show()
                 WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
-                WhoFrameTotals:Show(); if liveCheck then liveCheck:Hide() end
+                WhoFrameTotals:Show()
                 WhoList_Update()
             end
         end
