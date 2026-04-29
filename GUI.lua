@@ -153,7 +153,8 @@ function Whorkaround:InitGUI()
 
     -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors", "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("BOTTOMLEFT", WhoFrame, "BOTTOMLEFT", 100, 25)
+    browserFactionColors:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 15, -2)
+    browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
     browserFactionColors:Hide() 
     components.browserFactionColors = browserFactionColors
 
