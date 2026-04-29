@@ -149,16 +149,18 @@ function Whorkaround:InitGUI()
         return container
     end
 
-    local tab1, tab2
+function Whorkaround:InitGUI()
+    local components = {}
+    local tab1, tab2, settings, browserFactionColors
 
     -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
-    local browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors", "Colors names by faction in the browser.")
+    browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors", "Colors names by faction in the browser.")
     browserFactionColors:SetPoint("BOTTOMLEFT", WhoFrame, "BOTTOMLEFT", 100, 25)
     browserFactionColors:Hide() 
     components.browserFactionColors = browserFactionColors
 
     -- Settings Panel
-    local settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
+    settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
     settings:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 14, -70)
     settings:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -38, 79)
     settings:SetFrameStrata(WhoFrame:GetFrameStrata())
@@ -351,7 +353,7 @@ function Whorkaround:InitGUI()
 
     local function SyncUI()
         if not FriendsFrame:IsVisible() or (not WhoFrame:IsVisible() and not (settings and settings:IsVisible())) then return end
-        if not tab1 or not tab2 or not settings then return end
+        if not tab1 or not tab2 or not settings or not browserFactionColors then return end
         local browserActive = tab1:GetChecked()
         local settingsActive = tab2:GetChecked()
 
