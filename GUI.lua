@@ -440,31 +440,32 @@ function Whorkaround:InitGUI()
     proxyCheck:SetPoint("TOPLEFT", 20, -100)
     components.proxyCheck = proxyCheck
 
-    -- Proxy State Dropdown
+    -- Proxy State Dropdown (Arrow Button)
     local proxyModeMenu = CreateFrame("Frame", "WhorkaroundProxyModeMenu", settings, "UIDropDownMenuTemplate")
-    proxyModeMenu:SetPoint("LEFT", proxyCheck.text, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(proxyModeMenu, 100)
+    local proxyModeBtn = CreateFrame("Button", nil, settings)
+    proxyModeBtn:SetSize(20, 20)
+    proxyModeBtn:SetPoint("LEFT", proxyCheck.text, "RIGHT", 2, 0)
+    proxyModeBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+    proxyModeBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
+    proxyModeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     
     UIDropDownMenu_Initialize(proxyModeMenu, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
         info.text = "Always"
-        info.func = function() 
-            Whorkaround_Settings.proxyOutCombat = false
-            UIDropDownMenu_SetText(proxyModeMenu, "Always")
-        end
+        info.func = function() Whorkaround_Settings.proxyOutCombat = false end
         info.checked = (Whorkaround_Settings.proxyOutCombat == false)
         UIDropDownMenu_AddButton(info)
         
         info.text = "Out of Combat"
-        info.func = function() 
-            Whorkaround_Settings.proxyOutCombat = true
-            UIDropDownMenu_SetText(proxyModeMenu, "Out of Combat")
-        end
+        info.func = function() Whorkaround_Settings.proxyOutCombat = true end
         info.checked = (Whorkaround_Settings.proxyOutCombat == true)
         UIDropDownMenu_AddButton(info)
     end)
-    UIDropDownMenu_SetText(proxyModeMenu, Whorkaround_Settings.proxyOutCombat and "Out of Combat" or "Always")
-    components.proxyModeMenu = proxyModeMenu
+
+    proxyModeBtn:SetScript("OnClick", function()
+        ToggleDropDownMenu(1, nil, proxyModeMenu, proxyModeBtn, 0, 0)
+    end)
+    components.proxyModeBtn = proxyModeBtn
 
     local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec", "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
     proxyCooldown:SetPoint("TOPLEFT", 210, -115) -- Aligned with proxyCheck
