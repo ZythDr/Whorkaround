@@ -419,8 +419,16 @@ function Whorkaround:InitGUI()
     proxyCheck:SetPoint("TOPLEFT", autoOpen, "BOTTOMLEFT", 0, -5)
     components.proxyCheck = proxyCheck
 
+    local proxyOutCombat = CreateCheckBox(settings, "Only out of combat", "proxyOutCombat", "Disables acting as a proxy while you are in combat.")
+    proxyOutCombat:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 20, 0)
+    components.proxyOutCombat = proxyOutCombat
+
+    local proxyCooldown = CreateSlider(settings, "Proxy Cooldown (seconds)", "proxyCooldown", 3, 30, 1)
+    proxyCooldown:SetPoint("TOPLEFT", proxyOutCombat, "BOTTOMLEFT", -10, -25)
+    components.proxyCooldown = proxyCooldown
+
     local factionColorCheck = CreateCheckBox(settings, "Use Faction Colors in Browser", "factionColors", "Colors player names by faction (Horde/Alliance) instead of class in the database browser.")
-    factionColorCheck:SetPoint("TOPLEFT", proxyCheck, "BOTTOMLEFT", 0, -5)
+    factionColorCheck:SetPoint("TOPLEFT", proxyCooldown, "BOTTOMLEFT", -10, -10)
     components.factionColorCheck = factionColorCheck
 
     local retentionSlider = CreateSlider(settings, "Keep Cached players for", "retentionWeeks", 1, 4, 1)
