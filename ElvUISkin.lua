@@ -40,6 +40,8 @@ function Whorkaround:SkinGUIComponents(components)
             components.retentionSlider.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
         end
     end
+    -- Store components for later repositioning in ApplyElvUISkin
+    Whorkaround.skinnedComponents = components
 end
 
 function Whorkaround:ApplyElvUISkin()
@@ -93,5 +95,12 @@ function Whorkaround:ApplyElvUISkin()
             ib:SetTemplate("Transparent") -- Layered for that "double background" look
             settings.innerBackdrop = ib
         end
+    end
+
+    -- Handle Browser Faction Colors repositioning for ElvUI
+    local browserFC = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserFactionColors
+    if browserFC then
+        browserFC:ClearAllPoints()
+        browserFC:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 65, -30)
     end
 end
