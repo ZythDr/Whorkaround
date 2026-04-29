@@ -10,21 +10,6 @@ Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
 Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
 Whorkaround.printThrottle = Whorkaround.printThrottle or {}
 
--- Debug Logging Utility
-function Whorkaround:Log(msg, category)
-    if Whorkaround_Settings and Whorkaround_Settings.debug then
-        local prefix = "|cff1abc9cWhorkaround Debug [" .. (category or "INFO") .. "]:|r "
-        DEFAULT_CHAT_FRAME:AddMessage(prefix .. msg, 0.7, 0.7, 0.7)
-    end
-end
-
--- Toggle Debug Mode
-function Whorkaround:ToggleDebug()
-    Whorkaround_Settings = Whorkaround_Settings or {}
-    Whorkaround_Settings.debug = not Whorkaround_Settings.debug
-    local state = Whorkaround_Settings.debug and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"
-    print("|cff1abc9cWhorkaround:|r Debug mode is now " .. state)
-end
 
 -- Class lookup table for 3.3.5 (Project Epoch: No Death Knights)
 local localizedClassMap = {
@@ -37,6 +22,7 @@ local validClasses = {
     ["PRIEST"] = true, ["SHAMAN"] = true, ["MAGE"] = true, ["WARLOCK"] = true,
     ["DRUID"] = true,
 }
+Whorkaround.validClasses = validClasses -- Shared with Comm.lua
 
 -- Race Token to Faction mapping for 3.3.5
 local raceFactionMap = {
@@ -203,7 +189,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     if (not level or level == 0) and source ~= "WhorkComm" and source ~= "SILENT" and source ~= "TIMEOUT" and source ~= "PROXY" then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
-            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - timestamp < 10)
+            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 10)
             if not isFresh then
                 local statusMsg = (level == 0) and "identified as " .. faction or "appears to be offline"
                 for _, frame in ipairs(GetOutputFrames()) do
@@ -263,7 +249,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
             zone = (area ~= "Unknown") and area or (cachedData and cachedData.zone),
             faction = faction,
             lastSeen = timestamp,
-            source = source or (cached and "Cache" or "FriendsList")
+            source = source or (cachedData and "Cache" or "FriendsList")
         }
         if Whorkaround.SyncBrowser then Whorkaround:SyncBrowser(isNew) end
     end
@@ -834,7 +820,7 @@ end
 -- UTILITY COMMANDS
 SLASH_WSTATS1 = "/whostats"; SlashCmdList["WSTATS"] = function() Whorkaround:ShowStats() end
 SLASH_WCLEAR1 = "/whocleardb"; SlashCmdList["WCLEAR"] = function()
-    Whorkaround_DB = {}; print("|cff1abc9cWhorkaround:|r Database cleared.")
+    StaticPopup_Show("WHORKAROUND_CONFIRM_CLEAR")
 end
 SLASH_WFIND1 = "/whofind"; SlashCmdList["WFIND"] = function(msg) Whorkaround:Find(msg) end
 SLASH_WDEBUG1 = "/whodebug"; SlashCmdList["WDEBUG"] = function() Whorkaround:ToggleDebug() end
