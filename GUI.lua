@@ -439,9 +439,12 @@ function Whorkaround:InitGUI()
     local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab", "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
     tabBox:SetPoint("TOPLEFT", 22, -45)
     components.tabBox = tabBox
-    -- Narrower editbox for Tab names
+    -- Wider editbox for Tab names and centered alignment
     for _, child in ipairs({tabBox:GetChildren()}) do
-        if child:IsObjectType("EditBox") then child:SetWidth(100) end
+        if child:IsObjectType("EditBox") then 
+            child:SetWidth(125) 
+            child:SetPoint("TOPLEFT", 2, -14) -- Slight nudge for better alignment with label
+        end
     end
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")

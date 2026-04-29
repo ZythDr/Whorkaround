@@ -13,10 +13,8 @@ function Whorkaround:SkinGUIComponents(components)
         -- tabBox is a container, find the EditBox inside
         for _, child in ipairs({components.tabBox:GetChildren()}) do
             if child:IsObjectType("EditBox") then 
+                child:StripTextures()
                 S:HandleEditBox(child)
-                if child.backdrop then
-                    child.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
-                end
             end
         end
     end
@@ -30,15 +28,9 @@ function Whorkaround:SkinGUIComponents(components)
     
     if components.proxyCooldown then 
         S:HandleSliderFrame(components.proxyCooldown) 
-        if components.proxyCooldown.backdrop then
-            components.proxyCooldown.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
-        end
     end
     if components.retentionSlider then 
         S:HandleSliderFrame(components.retentionSlider) 
-        if components.retentionSlider.backdrop then
-            components.retentionSlider.backdrop:SetBackdropColor(0.02, 0.02, 0.02, 0.9)
-        end
     end
     -- Store components for later repositioning in ApplyElvUISkin
     Whorkaround.skinnedComponents = components
@@ -85,16 +77,7 @@ function Whorkaround:ApplyElvUISkin()
     local settings = _G["WhorkaroundSettingsPanel"]
     if settings then
         settings:StripTextures()
-        settings:SetTemplate("Default") -- Use solid template for readability
-        
-        -- Add a secondary inner backdrop for extra contrast if needed
-        if not settings.innerBackdrop then
-            local ib = CreateFrame("Frame", nil, settings)
-            ib:SetAllPoints()
-            ib:SetFrameLevel(settings:GetFrameLevel() - 1)
-            ib:SetTemplate("Transparent") -- Layered for that "double background" look
-            settings.innerBackdrop = ib
-        end
+        settings:SetTemplate("Transparent")
     end
 
     -- Handle Browser Faction Colors repositioning for ElvUI
