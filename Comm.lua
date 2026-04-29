@@ -11,7 +11,7 @@ local notifiedUpdate = false
 
 local scheduledResponses = {}
 local scheduledProxy = {} -- New: For live friends-list lookups
-local recentRequests = {}
+
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -19,7 +19,7 @@ frame:RegisterEvent("CHANNEL_UI_UPDATE")
 frame:RegisterEvent("CHAT_MSG_CHANNEL")
 
 -- Strict Validation Tables
-local validClasses = {
+local validClasses = Whorkaround.validClasses or {
     ["WARRIOR"] = true, ["PALADIN"] = true, ["HUNTER"] = true, ["ROGUE"] = true,
     ["PRIEST"] = true, ["SHAMAN"] = true, ["MAGE"] = true, ["WARLOCK"] = true,
     ["DRUID"] = true,

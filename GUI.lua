@@ -249,9 +249,7 @@ function Whorkaround:InitGUI()
         end
     end
 
-    hooksecurefunc("WhoList_Update", function()
-        if tab1 and tab1:GetChecked() then Whorkaround_WhoList_Update() end
-    end)
+
 
     local function UpdateSortArrows()
         for i = 1, 4 do
@@ -321,23 +319,6 @@ function Whorkaround:InitGUI()
         FauxScrollFrame_OnVerticalScroll(self, offset, 16, Whorkaround_WhoList_Update)
     end
     local nativeScrollScript
-
-    -- Mouse wheel support for the list
-    WhoFrame:EnableMouseWheel(true)
-    WhoFrame:SetScript("OnMouseWheel", function(self, delta)
-        if tab1 and tab1:GetChecked() then
-            local scrollBar = WhoListScrollFrameScrollBar
-            if scrollBar and scrollBar:IsShown() then
-                local min, max = scrollBar:GetMinMaxValues()
-                local val = scrollBar:GetValue()
-                if delta > 0 then
-                    scrollBar:SetValue(math.max(min, val - 32))
-                else
-                    scrollBar:SetValue(math.min(max, val + 32))
-                end
-            end
-        end
-    end)    local nativeScrollScript
     local nativeEditBoxScripts = {}
 
     local function SyncUI()
@@ -528,10 +509,7 @@ function Whorkaround:InitGUI()
         end
     end)
 
-    local function Whorkaround_OnVerticalScroll(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, 16, Whorkaround_WhoList_Update)
-    end
-    local nativeScrollScript
+
 
     hooksecurefunc("UIDropDownMenu_SetSelectedValue", function(frame)
         if frame == WhoFrameDropDown and tab1 and tab1:GetChecked() then Whorkaround_WhoList_Update() end
