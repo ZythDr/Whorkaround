@@ -439,6 +439,10 @@ function Whorkaround:InitGUI()
     
     local statsFactions = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     statsFactions:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
+
+    local statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statsNetwork:SetPoint("TOPLEFT", statsFactions, "BOTTOMLEFT", 0, -8)
+    statsNetwork:SetTextColor(0.53, 0.53, 0.53)
     
     -- Interaction Hitboxes for Tooltips
     local aHit = CreateFrame("Frame", nil, settings)
@@ -471,6 +475,17 @@ function Whorkaround:InitGUI()
         statsFactions:SetText(string.format("%s |cff0070dd%d|r      %s |cffff2020%d|r", aIcon, alliance, hIcon, horde))
         SetStatTooltip(aHit, "Alliance", {r=0, g=0.44, b=0.87}, alliance)
         SetStatTooltip(hHit, "Horde", {r=1, g=0.12, b=0.12}, horde)
+        -- Network peer counts (populated by Comm.lua passively)
+        local peerCount, proxyCount = 0, 0
+        for _ in pairs(Whorkaround.networkPeers or {}) do peerCount = peerCount + 1 end
+        for _ in pairs(Whorkaround.proxyPeers or {}) do proxyCount = proxyCount + 1 end
+        if peerCount > 0 then
+            statsNetwork:SetText(string.format("Network: %d peer%s seen  (|cff9b59b6%d prox%s|r)",
+                peerCount, peerCount == 1 and "" or "s",
+                proxyCount, proxyCount == 1 and "y" or "ies"))
+        else
+            statsNetwork:SetText("Network: No peers seen this session")
+        end
     end
     Whorkaround.UpdateStats = UpdateStats
     settings:SetScript("OnShow", UpdateStats)
