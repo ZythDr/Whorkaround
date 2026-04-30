@@ -201,8 +201,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local timestamp = timestamp or time()
     local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
     isLive = isLive or isDataRecent
-    local playerFaction = UnitFactionGroup("player")
-    local enemyFaction = (playerFaction == "Horde") and "Alliance" or "Horde"
+    local playerFaction = UnitFactionGroup("player") or "Unknown"
+    local enemyFaction = (playerFaction == "Horde") and "Alliance" or (playerFaction == "Alliance" and "Horde" or "Unknown")
     local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
@@ -212,8 +212,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     if Whorkaround.lastPrint[cleanName] and (now - Whorkaround.lastPrint[cleanName] < 0.1) then return end
     Whorkaround.lastPrint[cleanName] = now
 
-    if not faction then
-        faction = (not level or level == 0) and enemyFaction or playerFaction
+    if not faction or faction == "U" then
+        faction = (cachedData and cachedData.faction) or ((not level or level == 0) and enemyFaction or playerFaction)
     end
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
@@ -635,7 +635,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     end
                     if Whorkaround.pendingQueries[cleanName] == "PROXY" then
                         if connected then
-                            local faction = UnitFactionGroup("player")
+                            local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or "Unknown"
                             Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
                             
                             -- DE-DUPLICATION: Cancel any pending cached response schedule
