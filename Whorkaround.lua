@@ -824,8 +824,8 @@ function Whorkaround:Query(name, silent)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
             if not silent then
-                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction)
-                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
+                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, "Manual", faction, time())
+                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), true)
             end
             return
         end
@@ -845,10 +845,10 @@ function Whorkaround:Query(name, silent)
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
         if not silent then
-            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster")
+            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, "GuildRoster", nil, time())
         end
         if not isOffline then
-            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
+            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), true)
         end
         return
     end
