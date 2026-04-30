@@ -581,8 +581,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             end
             
             for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-            for name in text:gmatch("^@([%a]+)") do TriggerQuery(name) end
-            for name in text:gmatch("%s@([%a]+)") do TriggerQuery(name) end
+            for name in text:gmatch("^@([%a]+)%s") do TriggerQuery(name) end
+            for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
         end
     end
 
