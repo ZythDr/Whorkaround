@@ -192,6 +192,12 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
     local displayName = name:gsub("^%l", string.upper)
     local classColor = GetClassColorCode(class, name)
+    
+    -- TitleCase the class for professional appearance
+    local displayClass = class or "Unknown"
+    if displayClass:lower() ~= "unknown" then
+        displayClass = displayClass:lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper() .. rest end)
+    end
     local timestamp = timestamp or time()
     local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
     isLive = isLive or isDataRecent
@@ -239,7 +245,11 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         local displayLevel = (level and level > 0 and level <= 60) and level or (cachedData and cachedData.level)
         local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
         local displayFaction = faction or cachedData.faction or "Unknown"
-        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, class or "Unknown", displayArea, timeText)
+
+        -- DATA QUALITY: Abort if essential data is still Unknown
+        if displayClass == "Unknown" or displayArea == "Unknown" then return end
+
+        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, displayClass, displayArea, timeText)
 
         if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
@@ -632,7 +642,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
                             
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, "PROXY", faction)
+                            -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                             Whorkaround.pendingQueries[cleanName] = nil
                         else

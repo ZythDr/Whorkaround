@@ -265,7 +265,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 local f = fields[6]
                 local timestamp = tonumber(fields[7])
                 local isProxy = fields[8]
-                
+
+                -- DATA QUALITY: Ignore responses with placeholder/unknown data
+                if not name or not class or class:upper() == "UNKNOWN" or not zone or zone:upper() == "UNKNOWN" or (level or 0) == 0 then
+                    return
+                end
+
                 if remoteVer and not notifiedUpdate and IsNewerVersion(remoteVer, currentVersion) then
                     local prefix = "|cff1abc9cWhorkaround Update:|r "
                     DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVer .. "|r) is available!")
@@ -360,12 +365,23 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
         Whorkaround.broadcastThrottle[cleanName] = GetTime()
 
         name = name:gsub("^%l", string.upper)
-        class = (class or "Unknown"):upper()
+        
+        -- TitleCase class and validate before broadcasting
+        local dClass = (class or "Unknown")
+        if dClass:lower() ~= "unknown" then
+            dClass = dClass:lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper() .. rest end)
+        end
+        
+        -- DATA QUALITY: Abort broadcast if we don't have full info
+        if not zone or zone:lower() == "unknown" or dClass == "Unknown" or (tonumber(level) or 0) == 0 then
+            return
+        end
+
         timestamp = timestamp or time()
         local f = (faction == "Alliance") and "A" or (faction == "Horde" and "H" or "U")
         local p = isProxy and "P" or "C"
         -- Include version, timestamp, and proxy flag in the broadcast
-        local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, class, zone or "Unknown", f, timestamp, p)
+        local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, dClass:upper(), zone, f, timestamp, p)
         
         if _G.ChatThrottleLib then
             -- Default priority logic if no override: Live/Fresh = NORMAL, Stale = BULK
