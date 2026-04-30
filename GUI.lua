@@ -160,7 +160,7 @@ function Whorkaround:InitGUI()
     -- Browser-specific Faction Colors toggle (Repositioned to right side)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
         "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -25, -32)
+    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -35, -32)
     browserFactionColors.text:ClearAllPoints()
     browserFactionColors.text:SetPoint("RIGHT", browserFactionColors, "LEFT", -2, 0)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
@@ -489,11 +489,9 @@ end
                 local cur = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
                 if cur ~= "zone" and cur ~= "seen" then UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "zone") end
 
-                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4
-                    :Show()
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
-                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 95)
+                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 110)
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
