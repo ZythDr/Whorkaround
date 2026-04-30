@@ -259,11 +259,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                 frame:AddMessage(line2, 1, 1, 0)
             end
         else
-            if source ~= "SILENT" and source ~= "PROXY" then
-                for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(line1, 1, 1, 0)
-                end
+            for _, frame in ipairs(GetOutputFrames()) do
+                frame:AddMessage(line1, 1, 1, 0)
             end
+        end
+    elseif source == "FINAL_TIMEOUT" then
+        for _, frame in ipairs(GetOutputFrames()) do
+            frame:AddMessage(string.format("%sNo data for |Hplayer:%s|h[|cffffffff%s|r]|h was found on the network.", prefix, name, displayName), 1, 1, 0)
         end
     else
         local isSilent = (source == "PROXY" or source == "SILENT")
@@ -532,6 +534,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 local data = Whorkaround_DB and Whorkaround_DB[name]
                 if data then
                     Whorkaround:PrintWhoResult(name, 0, data.class, "Unknown", false, "TIMEOUT", data.faction)
+                else
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "FINAL_TIMEOUT")
                 end
             end
             Whorkaround.bestNetworkHits[name] = nil
