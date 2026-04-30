@@ -160,7 +160,7 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
     local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -10, 0)
+    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -13, 0)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
