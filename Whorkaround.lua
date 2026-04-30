@@ -897,10 +897,11 @@ function Whorkaround:Query(name, silent)
 end
 
 local function OnEditBoxTextChanged(self)
+    local text = self:GetText()
+    if not text then return end
+    
     if Whorkaround.editBoxTimer then Whorkaround.editBoxTimer:Cancel() end
-    Whorkaround.editBoxTimer = C_Timer.NewTimer(0.5, function()
-        local text = self:GetText()
-        if not text then return end
+    Whorkaround.editBoxTimer = C_Timer.NewTimer(0.3, function()
         local now = GetTime()
         Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
         
@@ -909,12 +910,16 @@ local function OnEditBoxTextChanged(self)
             if Whorkaround.lastEditBoxCheck[dbKey] and (now - Whorkaround.lastEditBoxCheck[dbKey] < 30) then return end
             Whorkaround.lastEditBoxCheck[dbKey] = now
             
-            local data = Whorkaround_DB and dbKey and Whorkaround_DB[dbKey]
-            if not data or (time() - (data.lastSeen or 0) > 3600) then Whorkaround:Query(dbKey, true) end
+            local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+            -- Check if data is missing or older than 5 minutes
+            if not data or (time() - (data.lastSeen or 0) > 300) then 
+                Whorkaround:Query(dbKey, true) 
+            end
         end
         
         for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-        for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
+        for name in text:gmatch("@([%a]+)[^%a]") do TriggerQuery(name) end
+        for name in text:gmatch("@([%a]+)$") do TriggerQuery(name) end
     end)
 end
 
