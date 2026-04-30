@@ -362,6 +362,9 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
     if id and id > 0 then
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
         Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
+        if Whorkaround.broadcastThrottle[cleanName] and (GetTime() - Whorkaround.broadcastThrottle[cleanName] < 2) then 
+            return 
+        end
         Whorkaround.broadcastThrottle[cleanName] = GetTime()
 
         name = name:gsub("^%l", string.upper)

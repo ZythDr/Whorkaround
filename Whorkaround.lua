@@ -752,7 +752,10 @@ function Whorkaround:Query(name, silent)
         local _, class = UnitClass("player")
         local faction = UnitFactionGroup("player")
         Whorkaround:Log("Self-lookup hit for " .. displayName .. "!", "LOCAL")
-        if not silent then Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) end
+        if not silent then 
+            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) 
+            Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
+        end
         return
     end
 
@@ -764,7 +767,10 @@ function Whorkaround:Query(name, silent)
             local level = UnitLevel(unit)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
-            if not silent then Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) end
+            if not silent then 
+                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) 
+                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
+            end
             return
         end
     end
@@ -781,9 +787,12 @@ function Whorkaround:Query(name, silent)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
     if gLevel and gLevel > 0 then
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
+        local isOffline = (gZone == "Offline")
         if not silent then 
-            local isOffline = (gZone == "Offline")
             Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster") 
+        end
+        if not isOffline then
+            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
         end
         return
     end
@@ -800,6 +809,8 @@ function Whorkaround:Query(name, silent)
         if not silent then
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache", cached.faction, cached.lastSeen)
         end
+        -- Always broadcast fresh cache hits if we haven't recently
+        Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen, false)
         return
     end
 
