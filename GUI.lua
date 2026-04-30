@@ -160,22 +160,22 @@ function Whorkaround:InitGUI()
     -- Browser-specific Faction Colors toggle (Repositioned to right side)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
         "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -35, -32)
+    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -25, -32)
     browserFactionColors.text:ClearAllPoints()
     browserFactionColors.text:SetPoint("RIGHT", browserFactionColors, "LEFT", -2, 0)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
     browserFactionColors:Hide()
     components.browserFactionColors = browserFactionColors
 
-    -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
+    -- Browser Faction Counters (Conditional Positioning)
     browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", 15, 0)
+    browserStatsAlliance:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 25, -55)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", -15, 0)
+    browserStatsHorde:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -25, -55)
     browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
@@ -272,7 +272,7 @@ function Whorkaround:InitGUI()
         -- Force the scrollbar to be active and have the correct range
         local scrollBar = WhoListScrollFrameScrollBar
         if numWhos > 17 then
-            scrollBar:SetMinMaxValues(0, math.max(0, (numWhos - 17) * 16))
+            scrollBar:SetMinMaxValues(0, (numWhos - 17) * 16)
             scrollBar:Show()
         else
             scrollBar:SetMinMaxValues(0, 0)
@@ -483,10 +483,10 @@ function Whorkaround:InitGUI()
                 local cur = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
                 if cur ~= "zone" and cur ~= "seen" then UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "zone") end
 
+                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4
+                    :Show()
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
-                -- Standard Blizzard anchors for the frame
-                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
@@ -511,7 +511,6 @@ function Whorkaround:InitGUI()
                 WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
-                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
                 WhoList_Update()

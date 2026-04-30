@@ -80,10 +80,20 @@ function Whorkaround:ApplyElvUISkin()
         settings:SetTemplate("Transparent")
     end
 
+    -- Handle Browser Faction Counters repositioning for ElvUI
+    local bAlliance = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserStatsAlliance
+    local bHorde = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserStatsHorde
+    if bAlliance and bHorde then
+        bAlliance:ClearAllPoints()
+        bAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -13, 0)
+        bHorde:ClearAllPoints()
+        bHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 10, 0)
+    end
+
     -- Handle Browser Faction Colors repositioning for ElvUI
     local browserFC = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserFactionColors
     if browserFC then
         browserFC:ClearAllPoints()
-        browserFC:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -40, -32)
+        browserFC:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -30, -32)
     end
 end
