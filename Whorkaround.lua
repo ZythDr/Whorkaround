@@ -900,7 +900,7 @@ local function OnEditBoxTextChanged(self)
     if Whorkaround.editBoxTimer then Whorkaround.editBoxTimer:Cancel() end
     Whorkaround.editBoxTimer = C_Timer.NewTimer(0.5, function()
         local text = self:GetText()
-        if not text or not text:find("@") then return end
+        if not text then return end
         local now = GetTime()
         Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
         
