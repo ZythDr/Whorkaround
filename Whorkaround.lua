@@ -953,7 +953,7 @@ local function OnEditBoxTextChanged(self)
         if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
             Whorkaround:Log("Editbox regex matched name: " .. name, "LOCAL")
         end
-        if not data or (time() - (data.lastSeen or 0) > 300) then 
+        if not data or (time() - (data.lastSeen or 0) > 60) then 
             Whorkaround:Query(dbKey, true) 
         elseif Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
             Whorkaround:Log("Skipping editbox query for " .. name .. " (Data is fresh)", "LOCAL")
@@ -961,7 +961,8 @@ local function OnEditBoxTextChanged(self)
     end
     
     for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-    for name in text:gmatch("^@([%a]+)%s") do TriggerQuery(name) end
+    local startName = text:match("^@([%a]+)%s")
+    if startName then TriggerQuery(startName) end
     for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
 end
 
