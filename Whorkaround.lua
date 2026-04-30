@@ -231,6 +231,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         faction = (cachedData and cachedData.faction) or ((not level or level == 0) and enemyFaction or playerFaction)
     end
 
+    local isActualSilent = Whorkaround.silentQueries and Whorkaround.silentQueries[cleanName] and (GetTime() - Whorkaround.silentQueries[cleanName] < 30)
+
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     -- ONLY trigger a scan if it's a truly manual user search (Manual, FriendsList) or a fresh Cache/Guild hit from a user search
     local isUserSearch = (source == "Manual" or source == "FriendsList")
@@ -243,10 +245,12 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
             if not isFresh then
                 local statusMsg = isEnemy and "identified as " .. faction or "appears to be offline"
-                for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(
-                    string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor,
-                        displayName, statusMsg), 1, 1, 0)
+                if source ~= "SILENT" and not isActualSilent then
+                    for _, frame in ipairs(GetOutputFrames()) do
+                        frame:AddMessage(
+                        string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor,
+                            displayName, statusMsg), 1, 1, 0)
+                    end
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
                 Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
@@ -275,20 +279,26 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
             local actionMsg = (source == "WhorkComm") and "fetched from network" or "recovered from cache (Network timeout)"
             local line2 = string.format("%sData %s was successfully %s.", prefix, statusLabel, actionMsg)
-            for _, frame in ipairs(GetOutputFrames()) do
-                frame:AddMessage(line1, 1, 1, 0)
-                frame:AddMessage(line2, 1, 1, 0)
+            if not isActualSilent then
+                for _, frame in ipairs(GetOutputFrames()) do
+                    frame:AddMessage(line1, 1, 1, 0)
+                    frame:AddMessage(line2, 1, 1, 0)
+                end
             end
         else
-            for _, frame in ipairs(GetOutputFrames()) do
-                frame:AddMessage(line1, 1, 1, 0)
+            if not isActualSilent then
+                for _, frame in ipairs(GetOutputFrames()) do
+                    frame:AddMessage(line1, 1, 1, 0)
+                end
             end
         end
     elseif source == "FINAL_TIMEOUT" then
-        for _, frame in ipairs(GetOutputFrames()) do
-            frame:AddMessage(
-            string.format("%sNo data for |Hplayer:%s|h[|cffffffff%s|r]|h was found on the network.", prefix, name,
-                displayName), 1, 1, 0)
+        if not isActualSilent then
+            for _, frame in ipairs(GetOutputFrames()) do
+                frame:AddMessage(
+                string.format("%sNo data for |Hplayer:%s|h[|cffffffff%s|r]|h was found on the network.", prefix, name,
+                    displayName), 1, 1, 0)
+            end
         end
     else
         local isSilent = (source == "PROXY" or source == "SILENT")
@@ -297,7 +307,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
             local failMsg = "No community data was found."
             if faction == playerFaction then failMsg = "User is offline and no community data was found." end
 
-            if source ~= "SILENT" and source ~= "PROXY" and source ~= "TIMEOUT_SILENT" then
+            if source ~= "SILENT" and source ~= "PROXY" and source ~= "TIMEOUT_SILENT" and not isActualSilent then
                 for _, frame in ipairs(GetOutputFrames()) do
                     frame:AddMessage(
                     string.format("%sNo community data was found for |Hplayer:%s|h[|r%s%s|r]|h.", prefix, name,
@@ -543,7 +553,30 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     if self.timer < 0.1 then return end
     self.timer = 0
     local now = GetTime()
-        -- Collect expired pendingQueries to avoid mutating during pairs()
+    
+    -- EDITBOX DEBOUNCE (3.3.5 compatible)
+    if Whorkaround.editBoxQueryTimer and now >= Whorkaround.editBoxQueryTimer then
+        local text = Whorkaround.editBoxQueryText
+        Whorkaround.editBoxQueryTimer = nil
+        if text then
+            Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
+            local function TriggerQuery(name)
+                local dbKey = name:lower()
+                
+                local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+                if not data or (time() - (data.lastSeen or 0) > 300) then 
+                    Whorkaround.silentQueries = Whorkaround.silentQueries or {}
+                    Whorkaround.silentQueries[dbKey] = now
+                    Whorkaround:Query(dbKey, false) 
+                end
+            end
+            
+            for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
+            for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
+        end
+    end
+
+    -- Collect expired pendingQueries to avoid mutating during pairs()
         wipe(expiredQueries)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             if type(startTime) == "number" then
@@ -866,9 +899,11 @@ function Whorkaround:Query(name, silent)
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
                 cached.faction, cached.lastSeen)
         end
-        -- Always broadcast fresh cache hits if we haven't recently
-        Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
-            false)
+        -- Only broadcast cache hits if it was a manual query (not silent)
+        if not silent then
+            Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
+                false)
+        end
         return
     end
 
@@ -897,13 +932,8 @@ end
 local function OnEditBoxTextChanged(self)
     local text = self:GetText()
     if not text then return end
-    local function TriggerQuery(name)
-        local dbKey = name:lower()
-        local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-        if not data or (time() - (data.lastSeen or 0) > 3600) then Whorkaround:Query(dbKey, true) end
-    end
-    for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-    for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
+    Whorkaround.editBoxQueryText = text
+    Whorkaround.editBoxQueryTimer = GetTime() + 0.3
 end
 
 local function HookChat()
