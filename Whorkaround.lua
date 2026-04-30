@@ -531,12 +531,20 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("FRIENDLIST_UPDATE"); frame:RegisterEvent("CHAT_MSG_SYSTEM"); frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT"); frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+
+-- Recyclable tables for ticker to reduce garbage buildup
+local expiredQueries = {}
+local expiredWaiters = {}
+local expiredRemovals = {}
+local sweepRemovals = {}
+
 frame:SetScript("OnUpdate", function(self, elapsed)
     self.timer = (self.timer or 0) + elapsed
-    if self.timer > 0.1 then
-        self.timer = 0; local now = GetTime()
+    if self.timer < 0.1 then return end
+    self.timer = 0
+    local now = GetTime()
         -- Collect expired pendingQueries to avoid mutating during pairs()
-        local expiredQueries = {}
+        wipe(expiredQueries)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             if type(startTime) == "number" then
                 local diff = now - startTime
@@ -558,14 +566,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         end
 
         -- NETWORK SCAN TIMEOUT (safe: collect first, then remove)
-        local expiredWaiters = {}
+        wipe(expiredWaiters)
         for name, startTime in pairs(Whorkaround.networkWaiters) do
             if (now - startTime) > 6 then
                 table.insert(expiredWaiters, name)
             end
         end
         for _, name in ipairs(expiredWaiters) do
-            Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
+            end
             Whorkaround.networkWaiters[name] = nil
             local best = Whorkaround.bestNetworkHits[name]
             if best then
@@ -583,7 +593,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         end
 
         -- RECENT REMOVALS CLEANUP
-        local expiredRemovals = {}
+        wipe(expiredRemovals)
         for name, removalTime in pairs(Whorkaround.removingFriends) do
             if (now - removalTime) > 10 then table.insert(expiredRemovals, name) end
         end
@@ -596,11 +606,11 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             Whorkaround:Log("Performing periodic memory sweep...", "CLEANUP")
             local function SweepTable(t, expiry)
                 if not t then return end
-                local toRemove = {}
+                wipe(sweepRemovals)
                 for k, v in pairs(t) do
-                    if (now - v) > expiry then table.insert(toRemove, k) end
+                    if (now - v) > expiry then table.insert(sweepRemovals, k) end
                 end
-                for _, k in ipairs(toRemove) do t[k] = nil end
+                for _, k in ipairs(sweepRemovals) do t[k] = nil end
             end
             SweepTable(Whorkaround.sightingThrottle, 30)
             SweepTable(Whorkaround.broadcastThrottle, 60)

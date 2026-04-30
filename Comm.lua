@@ -12,6 +12,7 @@ local hasAnnounced = false
 
 local scheduledResponses = {}
 local scheduledProxy = {} -- New: For live friends-list lookups
+local tempFields = {} -- RECYCLABLE TABLE: Used for message parsing to reduce garbage
 
 -- Passive Proxy Peer Tracking
 Whorkaround.proxyPeers = Whorkaround.proxyPeers or {}
@@ -78,41 +79,66 @@ local function JoinCommChannel()
 end
 
 local joinTimer = 0
+local expiredResponses = {}
+local expiredProxy = {}
+local lastPrune = 0
+
 frame:SetScript("OnUpdate", function(self, elapsed)
     if joinTimer > 0 then
         joinTimer = joinTimer - elapsed
         if joinTimer <= 0 then JoinCommChannel() end
     end
 
+    self.timer = (self.timer or 0) + elapsed
+    if self.timer < 0.1 then return end
+    self.timer = 0
+
+    local now = GetTime()
+
+    -- Periodic Pruning (Every 60 seconds) to prevent memory buildup
+    if now - lastPrune > 60 then
+        lastPrune = now
+        local pruneCutoff = now - 300 -- 5 minute stale cutoff
+        for name, lastSeen in pairs(Whorkaround.networkPeers or {}) do if now - lastSeen > pruneCutoff then Whorkaround.networkPeers[name] = nil end end
+        for name, lastSeen in pairs(Whorkaround.proxyPeers or {}) do if now - lastSeen > pruneCutoff then Whorkaround.proxyPeers[name] = nil end end
+        for name, reqTime in pairs(Whorkaround.recentRequests or {}) do if now - reqTime > 600 then Whorkaround.recentRequests[name] = nil end end
+        for name, throttleTime in pairs(Whorkaround.broadcastThrottle or {}) do if now - throttleTime > 10 then Whorkaround.broadcastThrottle[name] = nil end end
+    end
+
     -- Skip expensive work when there's nothing to process
     if joinTimer <= 0 and not next(scheduledResponses) and not next(scheduledProxy) then return end
 
     -- Process scheduled responses (Seniority Suppression logic)
-    local now = GetTime()
-    local expiredResponses = {}
-    for name, sendTime in pairs(scheduledResponses) do
-        if now >= sendTime then
-            local data = Whorkaround_DB and Whorkaround_DB[name]
-            if data and data.level and data.level > 0 then
-                local isLocal = (data.source == "FriendsList" or data.source == "Manual" or data.source == "Sighting")
-                if isLocal then
-                    Whorkaround:Log("Broadcasting cached data for " .. name .. " (Timeout phase)", "NETWORK")
-                    Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK")
+    if next(scheduledResponses) then
+        wipe(expiredResponses)
+        for name, sendTime in pairs(scheduledResponses) do
+            if now >= sendTime then
+                local data = Whorkaround_DB and Whorkaround_DB[name]
+                if data and data.level and data.level > 0 then
+                    local isLocal = (data.source == "FriendsList" or data.source == "Manual" or data.source == "Sighting")
+                    if isLocal then
+                        if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                            Whorkaround:Log("Broadcasting cached data for " .. name .. " (Timeout phase)", "NETWORK")
+                        end
+                        Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK")
+                    end
                 end
+                table.insert(expiredResponses, name)
             end
-            table.insert(expiredResponses, name)
         end
+        for _, name in ipairs(expiredResponses) do scheduledResponses[name] = nil end
     end
-    for _, name in ipairs(expiredResponses) do scheduledResponses[name] = nil end
 
     -- Process scheduled proxy lookups
-    local expiredProxy = {}
-    for name, sendTime in pairs(scheduledProxy) do
-        if now >= sendTime then table.insert(expiredProxy, name) end
-    end
-    for _, name in ipairs(expiredProxy) do
-        if Whorkaround.ProxyQuery then Whorkaround:ProxyQuery(name) end
-        scheduledProxy[name] = nil
+    if next(scheduledProxy) then
+        wipe(expiredProxy)
+        for name, sendTime in pairs(scheduledProxy) do
+            if now >= sendTime then table.insert(expiredProxy, name) end
+        end
+        for _, name in ipairs(expiredProxy) do
+            if Whorkaround.ProxyQuery then Whorkaround:ProxyQuery(name) end
+            scheduledProxy[name] = nil
+        end
     end
 end)
 
@@ -128,14 +154,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if chName == CH_NAME and sender and myName and sender:lower() ~= myName:lower() then
             -- Passively track all WhorkComm users
             Whorkaround.networkPeers[sender:lower()] = GetTime()
-            -- Handle Data Requests (WKR:Faction:Name)
-            if msg:sub(1, #REQ_PREFIX) == REQ_PREFIX then
-                local content = msg:sub(#REQ_PREFIX + 1)
-                local targetFaction, targetName = content:match("^(.-):(.+)$")
+            -- Handle Network Requests (WKR:F:Name)
+            if msg:find("^" .. REQ_PREFIX) then
+                local targetFaction = msg:sub(#REQ_PREFIX + 1, #REQ_PREFIX + 1)
+                local targetName = msg:sub(#REQ_PREFIX + 3)
                 
                 -- Support older clients that don't send a faction tag
-                if not targetName then
-                    targetName = content
+                if not targetName or targetName == "" then
+                    targetName = msg:sub(#REQ_PREFIX + 1)
                     targetFaction = "U" -- Unknown/Any
                 end
 
@@ -244,27 +270,27 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     Whorkaround:Log("Peer announced: " .. sender .. " v" .. (remoteVer or "?") .. " (No Proxy)", "NETWORK")
                 end
 
-            -- Handle Data Broadcasts (WK:)
-            elseif msg:sub(1, #MSG_PREFIX) == MSG_PREFIX then
+            -- Handle Data Broadcasts (WK:Ver:Name:...)
+            elseif msg:find("^" .. MSG_PREFIX) then
                 local rawData = msg:sub(#MSG_PREFIX + 1)
                 
-                -- FUTURE-PROOF PARSING: Split by colons and filter out "Key=Value" tags
-                local fields = {}
+                -- RECYCLED PARSING: Avoid creating a new table for every network message
+                wipe(tempFields)
                 for part in rawData:gmatch("([^:]+)") do
-                    if not part:find("^%a+=") then -- Skip any part that is a tag (e.g. G=Guild)
-                        table.insert(fields, part)
+                    if not part:find("^%a+=") then
+                        table.insert(tempFields, part)
                     end
                 end
 
                 -- Mapping based on core field indices
-                local remoteVer = fields[1]
-                local name = fields[2]
-                local level = tonumber(fields[3])
-                local class = fields[4]
-                local zone = fields[5]
-                local f = fields[6]
-                local timestamp = tonumber(fields[7])
-                local isProxy = fields[8]
+                local remoteVer = tempFields[1]
+                local name = tempFields[2]
+                local level = tonumber(tempFields[3])
+                local class = tempFields[4]
+                local zone = tempFields[5]
+                local f = tempFields[6]
+                local timestamp = tonumber(tempFields[7])
+                local isProxy = tempFields[8]
 
                 -- DATA QUALITY: Ignore responses with placeholder/unknown data
                 if not name or not class or class:upper() == "UNKNOWN" or not zone or zone:upper() == "UNKNOWN" or (level or 0) == 0 or (f ~= "A" and f ~= "H") then
