@@ -267,7 +267,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 local isProxy = fields[8]
 
                 -- DATA QUALITY: Ignore responses with placeholder/unknown data
-                if not name or not class or class:upper() == "UNKNOWN" or not zone or zone:upper() == "UNKNOWN" or (level or 0) == 0 then
+                if not name or not class or class:upper() == "UNKNOWN" or not zone or zone:upper() == "UNKNOWN" or (level or 0) == 0 or (f ~= "A" and f ~= "H") then
                     return
                 end
 
@@ -379,6 +379,7 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
 
         timestamp = timestamp or time()
         local f = (faction == "Alliance") and "A" or (faction == "Horde" and "H" or "U")
+        if f == "U" then return end -- DATA QUALITY: Never broadcast unknown faction
         local p = isProxy and "P" or "C"
         -- Include version, timestamp, and proxy flag in the broadcast
         local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, dClass:upper(), zone, f, timestamp, p)
