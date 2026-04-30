@@ -66,9 +66,9 @@ local function CreateEditBox(parent, label, setting, tooltip)
         Whorkaround_Settings[setting] = self:GetText()
         self:ClearFocus()
         print("|cff1abc9cWhorkaround:|r " ..
-        label ..
-        " set to: |cffffd100" ..
-        (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
+            label ..
+            " set to: |cffffd100" ..
+            (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
     end)
     eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
@@ -138,8 +138,12 @@ function Whorkaround:InitGUI()
         eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "1.0") end)
         eb:SetScript("OnEnterPressed", function(self)
             local val = tonumber(self:GetText())
-            if val and val >= 0.1 then Whorkaround_Settings[setting] = val else self:SetText(Whorkaround_Settings
-                [setting] or "1.0") end
+            if val and val >= 0.1 then
+                Whorkaround_Settings[setting] = val
+            else
+                self:SetText(Whorkaround_Settings
+                    [setting] or "1.0")
+            end
             self:ClearFocus()
         end)
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -161,7 +165,7 @@ function Whorkaround:InitGUI()
     -- Browser-specific Faction Colors toggle (Repositioned to right side)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
         "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -37, -32)
+    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -60, -32)
     browserFactionColors.text:ClearAllPoints()
     browserFactionColors.text:SetPoint("RIGHT", browserFactionColors, "LEFT", -2, 0)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
@@ -190,7 +194,8 @@ function Whorkaround:InitGUI()
 
     -- Tooltip Hitboxes
     browserStatsAllianceHit = CreateFrame("Frame", nil, WhoFrame)
-    browserStatsAllianceHit:SetSize(40, 20); browserStatsAllianceHit:SetPoint("CENTER", browserStatsAlliance); browserStatsAllianceHit:EnableMouse(true); browserStatsAllianceHit:Hide()
+    browserStatsAllianceHit:SetSize(40, 20); browserStatsAllianceHit:SetPoint("CENTER", browserStatsAlliance); browserStatsAllianceHit
+        :EnableMouse(true); browserStatsAllianceHit:Hide()
     browserStatsAllianceHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
     browserStatsAllianceHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -201,7 +206,8 @@ function Whorkaround:InitGUI()
     components.browserStatsAllianceHit = browserStatsAllianceHit
 
     browserStatsHordeHit = CreateFrame("Frame", nil, WhoFrame)
-    browserStatsHordeHit:SetSize(40, 20); browserStatsHordeHit:SetPoint("CENTER", browserStatsHorde); browserStatsHordeHit:EnableMouse(true); browserStatsHordeHit:Hide()
+    browserStatsHordeHit:SetSize(40, 20); browserStatsHordeHit:SetPoint("CENTER", browserStatsHorde); browserStatsHordeHit
+        :EnableMouse(true); browserStatsHordeHit:Hide()
     browserStatsHordeHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
     browserStatsHordeHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -252,8 +258,16 @@ function Whorkaround:InitGUI()
             for name, entry in pairs(Whorkaround_DB) do
                 if query == "" or name:lower():find(query) or (entry.class and entry.class:lower():find(query)) or (entry.zone and entry.zone:lower():find(query)) then
                     table.insert(data,
-                        { name = name, level = entry.level or 0, class = entry.class, zone = entry.zone, guild = entry
-                        .guild, faction = entry.faction, seen = entry.lastSeen or 0 })
+                        {
+                            name = name,
+                            level = entry.level or 0,
+                            class = entry.class,
+                            zone = entry.zone,
+                            guild = entry
+                                .guild,
+                            faction = entry.faction,
+                            seen = entry.lastSeen or 0
+                        })
                 end
             end
         end
@@ -376,8 +390,12 @@ function Whorkaround:InitGUI()
                 end
                 if currentSortKey == colKey then
                     arrow:Show()
-                    if currentSortOrder == "ASC" then arrow:SetTexCoord(0, 0.5625, 0, 1) else arrow:SetTexCoord(0, 0.5625,
-                            1, 0) end
+                    if currentSortOrder == "ASC" then
+                        arrow:SetTexCoord(0, 0.5625, 0, 1)
+                    else
+                        arrow:SetTexCoord(0, 0.5625,
+                            1, 0)
+                    end
                 else
                     arrow:Hide()
                 end
@@ -399,7 +417,9 @@ function Whorkaround:InitGUI()
 
     local function CycleSort(key)
         if currentSortKey == key then
-            if currentSortOrder == "ASC" then currentSortOrder = "DESC" else
+            if currentSortOrder == "ASC" then
+                currentSortOrder = "DESC"
+            else
                 currentSortKey = "seen"; currentSortOrder = "DESC"
             end
         else
@@ -420,7 +440,7 @@ function Whorkaround:InitGUI()
             elseif name == "WhoFrameColumnHeader2" then
                 local col = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
                 CycleSort(col == "guild" and "guild" or
-                (col == "race" and "race" or (col == "seen" and "seen" or "zone")))
+                    (col == "race" and "race" or (col == "seen" and "seen" or "zone")))
             end
         end
     end
@@ -707,7 +727,7 @@ function Whorkaround:InitGUI()
                     local displayName = self.playerName:gsub("^%l", string.upper)
                     local link = string.format("|Hplayer:%s|h[%s]|h", self.playerName, displayName)
                     local eb = ChatEdit_GetActiveWindow() or (LastSayName and _G[LastSayName .. "EditBox"]) or
-                    _G["ChatFrameEditBox"]
+                        _G["ChatFrameEditBox"]
                     if eb and eb:IsVisible() then
                         eb:Insert(link)
                     else
