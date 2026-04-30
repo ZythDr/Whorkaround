@@ -247,6 +247,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                         displayName, statusMsg), 1, 1, 0)
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
+                Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
                 Whorkaround:Request(name, targetFactionTag)
                 return
