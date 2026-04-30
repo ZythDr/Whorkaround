@@ -267,14 +267,12 @@ function Whorkaround:InitGUI()
 
         local numWhos = #data
         local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
-        -- Shorten list to 15 rows in standard UI to avoid scrollbar overlap with totals
-        local rowCount = (tab1 and tab1:GetChecked() and not IsAddOnLoaded("ElvUI")) and 15 or 17
-        FauxScrollFrame_Update(WhoListScrollFrame, numWhos, rowCount, 16)
+        FauxScrollFrame_Update(WhoListScrollFrame, numWhos, 17, 16)
 
         -- Force the scrollbar to be active and have the correct range
         local scrollBar = WhoListScrollFrameScrollBar
-        if numWhos > rowCount then
-            scrollBar:SetMinMaxValues(0, math.max(0, (numWhos - rowCount) * 16))
+        if numWhos > 17 then
+            scrollBar:SetMinMaxValues(0, math.max(0, (numWhos - 17) * 16))
             scrollBar:Show()
         else
             scrollBar:SetMinMaxValues(0, 0)
@@ -300,10 +298,7 @@ function Whorkaround:InitGUI()
         for i = 1, 17 do
             local button = _G["WhoFrameButton" .. i]
             if not button then break end
-            if i > rowCount then
-                button:Hide()
-            else
-                local nameText = _G["WhoFrameButton" .. i .. "Name"]
+            local nameText = _G["WhoFrameButton" .. i .. "Name"]
             local levelText = _G["WhoFrameButton" .. i .. "Level"]
             local classText = _G["WhoFrameButton" .. i .. "Class"]
             local variableText = _G["WhoFrameButton" .. i .. "Variable"]
@@ -491,8 +486,14 @@ end
 
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
-                local scrollBottom = IsAddOnLoaded("ElvUI") and 77 or 130
-                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, scrollBottom)
+                -- Standard Blizzard anchors for the frame, but we pull up the scrollbar buttons manually
+                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
+                if not IsAddOnLoaded("ElvUI") then
+                    WhoListScrollFrameScrollBar:ClearAllPoints()
+                    WhoListScrollFrameScrollBar:SetPoint("TOPLEFT", WhoListScrollFrame, "TOPRIGHT", 0, -16)
+                    -- Pull up the bottom of the scrollbar by 55px to clear the faction stats
+                    WhoListScrollFrameScrollBar:SetPoint("BOTTOMLEFT", WhoListScrollFrame, "BOTTOMRIGHT", 0, 55)
+                end
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
@@ -518,6 +519,10 @@ end
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
+                -- Restore native scrollbar points
+                WhoListScrollFrameScrollBar:ClearAllPoints()
+                WhoListScrollFrameScrollBar:SetPoint("TOPLEFT", WhoListScrollFrame, "TOPRIGHT", 0, -16)
+                WhoListScrollFrameScrollBar:SetPoint("BOTTOMLEFT", WhoListScrollFrame, "BOTTOMRIGHT", 0, 16)
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
                 WhoList_Update()
