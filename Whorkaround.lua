@@ -223,7 +223,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
             local isEnemy = (faction ~= playerFaction)
-            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 10)
+            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 2)
             
             if not isFresh then
                 local statusMsg = isEnemy and "identified as " .. faction or "appears to be offline"
