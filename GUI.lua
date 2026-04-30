@@ -267,12 +267,14 @@ function Whorkaround:InitGUI()
 
         local numWhos = #data
         local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
-        FauxScrollFrame_Update(WhoListScrollFrame, numWhos, 17, 16)
+        -- Shorten list to 16 rows in browser to avoid scrollbar overlap with totals
+        local rowCount = (tab1 and tab1:GetChecked()) and 16 or 17
+        FauxScrollFrame_Update(WhoListScrollFrame, numWhos, rowCount, 16)
 
         -- Force the scrollbar to be active and have the correct range
         local scrollBar = WhoListScrollFrameScrollBar
-        if numWhos > 17 then
-            scrollBar:SetMinMaxValues(0, (numWhos - 17) * 16)
+        if numWhos > rowCount then
+            scrollBar:SetMinMaxValues(0, (numWhos - rowCount) * 16)
             scrollBar:Show()
         else
             scrollBar:SetMinMaxValues(0, 0)
@@ -298,7 +300,10 @@ function Whorkaround:InitGUI()
         for i = 1, 17 do
             local button = _G["WhoFrameButton" .. i]
             if not button then break end
-            local nameText = _G["WhoFrameButton" .. i .. "Name"]
+            if i > rowCount then
+                button:Hide()
+            else
+                local nameText = _G["WhoFrameButton" .. i .. "Name"]
             local levelText = _G["WhoFrameButton" .. i .. "Level"]
             local classText = _G["WhoFrameButton" .. i .. "Class"]
             local variableText = _G["WhoFrameButton" .. i .. "Variable"]
@@ -487,6 +492,7 @@ function Whorkaround:InitGUI()
                     :Show()
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
+                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 95)
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
@@ -511,6 +517,7 @@ function Whorkaround:InitGUI()
                 WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
+                WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
                 WhoList_Update()
