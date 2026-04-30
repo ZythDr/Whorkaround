@@ -10,29 +10,29 @@ function Whorkaround:SkinGUIComponents(components)
 
     if components.maintenanceBtn then S:HandleNextPrevButton(components.maintenanceBtn, "down") end
     if components.proxyModeBtn then S:HandleNextPrevButton(components.proxyModeBtn, "down") end
-    
+
     if components.tabBox then
         -- tabBox is a container, find the EditBox inside
-        for _, child in ipairs({components.tabBox:GetChildren()}) do
-            if child:IsObjectType("EditBox") then 
+        for _, child in ipairs({ components.tabBox:GetChildren() }) do
+            if child:IsObjectType("EditBox") then
                 child:StripTextures()
                 S:HandleEditBox(child)
             end
         end
     end
-    
+
     -- Checkboxes
     if components.autoOpen then S:HandleCheckBox(components.autoOpen) end
     if components.proxyCheck then S:HandleCheckBox(components.proxyCheck) end
     if components.browserFactionColors then S:HandleCheckBox(components.browserFactionColors) end
     if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
-    
-    
-    if components.proxyCooldown then 
-        S:HandleSliderFrame(components.proxyCooldown) 
+
+
+    if components.proxyCooldown then
+        S:HandleSliderFrame(components.proxyCooldown)
     end
-    if components.retentionSlider then 
-        S:HandleSliderFrame(components.retentionSlider) 
+    if components.retentionSlider then
+        S:HandleSliderFrame(components.retentionSlider)
     end
     -- Store components for later repositioning in ApplyElvUISkin
     Whorkaround.skinnedComponents = components
@@ -47,15 +47,15 @@ function Whorkaround:ApplyElvUISkin()
 
     -- Skin Side Tabs
     for i = 1, 2 do
-        local tab = _G["WhorkaroundSideTab"..i]
+        local tab = _G["WhorkaroundSideTab" .. i]
         if tab then
             -- Save icon texture before stripping
             local iconTex = i == 1 and "Interface\\Icons\\INV_Misc_Spyglass_03" or "Interface\\Icons\\INV_Misc_Gear_01"
-            
+
             tab:StripTextures()
             tab:SetTemplate("Default")
             tab:StyleButton()
-            
+
             -- Re-apply icon
             tab:SetNormalTexture(iconTex)
             local icon = tab:GetNormalTexture()
@@ -63,11 +63,11 @@ function Whorkaround:ApplyElvUISkin()
                 icon:SetTexCoord(unpack(E.TexCoords))
                 icon:SetInside()
             end
-            
+
             -- Position correction for ElvUI (Anchor to the backdrop edge, not the frame edge)
             local anchor = FriendsFrame.backdrop or FriendsFrame
             local xOffset = FriendsFrame.backdrop and (E.PixelMode and -1 or 1) or (E.PixelMode and -31 or -29)
-            
+
             tab:ClearAllPoints()
             if i == 1 then
                 tab:SetPoint("TOPLEFT", anchor, "TOPRIGHT", xOffset, -36)
@@ -98,7 +98,7 @@ function Whorkaround:ApplyElvUISkin()
     local browserFC = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserFactionColors
     if browserFC then
         browserFC:ClearAllPoints()
-        browserFC:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 20, -23)
+        browserFC:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 24, -22)
         browserFC.text:ClearAllPoints()
         browserFC.text:SetPoint("LEFT", browserFC, "RIGHT", 2, 0)
     end
