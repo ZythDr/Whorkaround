@@ -185,14 +185,16 @@ end
 local function GetRelativeTime(timestamp)
     if not timestamp or timestamp == 0 then return "Unknown" end
     local diff = time() - timestamp
+    if diff < 0 then diff = 0 end -- Handle clock drift
+
     if diff < 60 then
-        return "1 min ago"
+        return "just now"
     elseif diff < 3600 then
-        return string.format("%d min ago", diff / 60)
+        return string.format("%d min ago", math.floor(diff / 60))
     elseif diff < 86400 then
-        return string.format("%d hours ago", diff / 3600)
+        return string.format("%d hours ago", math.floor(diff / 3600))
     else
-        return string.format("%d days ago", diff / 86400)
+        return string.format("%d days ago", math.floor(diff / 86400))
     end
 end
 
