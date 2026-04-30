@@ -2,9 +2,11 @@ local Whorkaround = select(2, ...)
 
 -- Skin internal components (Defined at root so it captures InitGUI calls)
 function Whorkaround:SkinGUIComponents(components)
-    if not IsAddOnLoaded("ElvUI") then return end
     local E, L, V, P, G = unpack(ElvUI)
     local S = E:GetModule("Skins")
+
+    -- Respect ElvUI's "Blizzard Skins" and "Friends" skin settings
+    if not E.private.skins.blizzard.enable or not E.private.skins.blizzard.friends then return end
 
     if components.maintenanceBtn then S:HandleNextPrevButton(components.maintenanceBtn, "down") end
     if components.proxyModeBtn then S:HandleNextPrevButton(components.proxyModeBtn, "down") end
@@ -37,9 +39,11 @@ function Whorkaround:SkinGUIComponents(components)
 end
 
 function Whorkaround:ApplyElvUISkin()
-    if not IsAddOnLoaded("ElvUI") then return end
     local E, L, V, P, G = unpack(ElvUI)
     local S = E:GetModule("Skins")
+
+    -- Respect ElvUI's "Blizzard Skins" and "Friends" skin settings
+    if not E.private.skins.blizzard.enable or not E.private.skins.blizzard.friends then return end
 
     -- Skin Side Tabs
     for i = 1, 2 do
