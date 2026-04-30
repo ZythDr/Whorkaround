@@ -212,9 +212,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     if displayClass:lower() ~= "unknown" then
         displayClass = displayClass:lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper() .. rest end)
     end
-    local timestamp = timestamp or time()
-    local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
-    if isLive == nil then isLive = isDataRecent end
+    local timestamp = (timestamp and timestamp ~= 0) and timestamp or (cachedData and cachedData.lastSeen)
+    local isDataRecent = timestamp and (time() - timestamp < 10)
+    if isLive == nil then isLive = isDataRecent or false end
     local playerFaction = UnitFactionGroup("player") or "Unknown"
     local enemyFaction = (playerFaction == "Horde") and "Alliance" or
     (playerFaction == "Alliance" and "Horde" or "Unknown")
