@@ -267,14 +267,14 @@ function Whorkaround:InitGUI()
 
         local numWhos = #data
         local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
-        -- Shorten list to 16 rows in standard UI to avoid scrollbar overlap with totals
-        local rowCount = (tab1 and tab1:GetChecked() and not IsAddOnLoaded("ElvUI")) and 16 or 17
+        -- Shorten list to 15 rows in standard UI to avoid scrollbar overlap with totals
+        local rowCount = (tab1 and tab1:GetChecked() and not IsAddOnLoaded("ElvUI")) and 15 or 17
         FauxScrollFrame_Update(WhoListScrollFrame, numWhos, rowCount, 16)
 
         -- Force the scrollbar to be active and have the correct range
         local scrollBar = WhoListScrollFrameScrollBar
         if numWhos > rowCount then
-            scrollBar:SetMinMaxValues(0, (numWhos - rowCount) * 16)
+            scrollBar:SetMinMaxValues(0, math.max(0, (numWhos - rowCount) * 16))
             scrollBar:Show()
         else
             scrollBar:SetMinMaxValues(0, 0)
@@ -491,7 +491,7 @@ end
 
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
-                local scrollBottom = IsAddOnLoaded("ElvUI") and 77 or 110
+                local scrollBottom = IsAddOnLoaded("ElvUI") and 77 or 130
                 WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, scrollBottom)
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
