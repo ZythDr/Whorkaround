@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.18] - 2026-04-30
+
+### Changed
+- Memory Efficiency: Overhauled the core engine and GUI to eliminate memory "climbing" and high garbage buildup. Memory usage is now significantly lower and more stable during long sessions.
+- Browser Performance: Implemented a table recycling system for the Database Browser, making it much faster and lighter when searching or hovering players.
+- UI Clarity: Updated faction counters in the Browser to "Cached Alliance/Horde" to clarify they represent local database records.
+
+### Fixed
+- Data Accuracy: Resolved several issues where online friends, guild members, or targets would incorrectly show as "Cached" with old timestamps instead of "Live".
+- Network Transparency: Refined proxy tagging logic to ensure players are only identified as proxy peers when performing actual cross-faction lookups.
+
 ## [1.4.17] - 2026-04-30
 
 ### Changed

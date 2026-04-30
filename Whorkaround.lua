@@ -531,12 +531,20 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("FRIENDLIST_UPDATE"); frame:RegisterEvent("CHAT_MSG_SYSTEM"); frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT"); frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+
+-- Recyclable tables for ticker to reduce garbage buildup
+local expiredQueries = {}
+local expiredWaiters = {}
+local expiredRemovals = {}
+local sweepRemovals = {}
+
 frame:SetScript("OnUpdate", function(self, elapsed)
     self.timer = (self.timer or 0) + elapsed
-    if self.timer > 0.1 then
-        self.timer = 0; local now = GetTime()
+    if self.timer < 0.1 then return end
+    self.timer = 0
+    local now = GetTime()
         -- Collect expired pendingQueries to avoid mutating during pairs()
-        local expiredQueries = {}
+        wipe(expiredQueries)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             if type(startTime) == "number" then
                 local diff = now - startTime
@@ -558,14 +566,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         end
 
         -- NETWORK SCAN TIMEOUT (safe: collect first, then remove)
-        local expiredWaiters = {}
+        wipe(expiredWaiters)
         for name, startTime in pairs(Whorkaround.networkWaiters) do
             if (now - startTime) > 6 then
                 table.insert(expiredWaiters, name)
             end
         end
         for _, name in ipairs(expiredWaiters) do
-            Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
+            end
             Whorkaround.networkWaiters[name] = nil
             local best = Whorkaround.bestNetworkHits[name]
             if best then
@@ -583,7 +593,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         end
 
         -- RECENT REMOVALS CLEANUP
-        local expiredRemovals = {}
+        wipe(expiredRemovals)
         for name, removalTime in pairs(Whorkaround.removingFriends) do
             if (now - removalTime) > 10 then table.insert(expiredRemovals, name) end
         end
@@ -596,11 +606,11 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             Whorkaround:Log("Performing periodic memory sweep...", "CLEANUP")
             local function SweepTable(t, expiry)
                 if not t then return end
-                local toRemove = {}
+                wipe(sweepRemovals)
                 for k, v in pairs(t) do
-                    if (now - v) > expiry then table.insert(toRemove, k) end
+                    if (now - v) > expiry then table.insert(sweepRemovals, k) end
                 end
-                for _, k in ipairs(toRemove) do t[k] = nil end
+                for _, k in ipairs(sweepRemovals) do t[k] = nil end
             end
             SweepTable(Whorkaround.sightingThrottle, 30)
             SweepTable(Whorkaround.broadcastThrottle, 60)
@@ -611,12 +621,14 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
         -- SMART GHOST CLEANUP: Only runs 5s after the last addon action (query/proxy)
         if Whorkaround.lastActionTime and (now - Whorkaround.lastActionTime > 5) then
-            Whorkaround:Log("Running scheduled ghost friend cleanup...", "CLEANUP")
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Running scheduled ghost friend cleanup...", "CLEANUP")
+            end
             Whorkaround:CleanGhostFriends()
             Whorkaround.lastActionTime = nil
         end
     end
-end)
+)
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "UPDATE_MOUSEOVER_UNIT" then
@@ -700,7 +712,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             local qSource = Whorkaround.pendingQueries[cleanName]
                             local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource)
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
                             Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                             Whorkaround.pendingQueries[cleanName] = nil
@@ -812,7 +824,7 @@ function Whorkaround:Query(name, silent)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
             if not silent then
-                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction)
+                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, "Manual", faction, time())
                 Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
             end
             return
@@ -833,7 +845,7 @@ function Whorkaround:Query(name, silent)
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
         if not silent then
-            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster")
+            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, "GuildRoster", nil, time())
         end
         if not isOffline then
             Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
@@ -863,8 +875,12 @@ function Whorkaround:Query(name, silent)
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
         if fName and fName:lower() == name then
-            if not silent then Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, false,
-                    "FriendsList") end
+            if not silent then
+                Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, "FriendsList", nil, time())
+            end
+            if connected then
+                Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), false)
+            end
             return
         end
     end
