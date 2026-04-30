@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.16] - 2026-04-30
+
+### Fixed
+- Critical Lua Error: Resolved a 'bad argument #1 to unpack (table expected, got nil)' error in ElvUISkin.lua that prevented the GUI from loading for users without ElvUI enabled.
+
 ## [1.4.15] - 2026-04-30
 
 ### Changed
