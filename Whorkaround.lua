@@ -581,7 +581,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             end
             
             for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-            for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
+            for name in text:gmatch("^@([%a]+)") do TriggerQuery(name) end
+            for _, name in text:gmatch("([^%w])@([%a]+)") do TriggerQuery(name) end
         end
     end
 
@@ -967,7 +968,10 @@ local function HookChat()
             if name then
                 if IsShiftKeyDown() then
                     local eb = ChatEdit_GetActiveWindow()
-                    if eb then return orig(...) end -- Native behavior (insert name)
+                    if eb then 
+                        eb:Insert("[" .. name:gsub("^%l", string.upper) .. "]")
+                        return 
+                    end
                     Whorkaround:Query(name)
                     return
                 elseif button == "RightButton" then
@@ -1006,14 +1010,27 @@ local function ChatLinkFilter(self, event, msg, ...)
     if type(msg) == "string" and (msg:find("%[") or msg:find("@")) then
         msg = msg:gsub("(|H.-|h.-|h)",
             function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
-        local function ReplacementFunc(name)
+            
+        local function ReplaceBracket(name)
             local dbKey = name:lower()
             local data = Whorkaround_DB and Whorkaround_DB[dbKey]
             local color = GetClassColorCode(data and data.class, name)
             local displayName = name:gsub("^%l", string.upper)
             return string.format("|Hplayer:%s|h%s[%s]|r|h", name, color, displayName)
         end
-        msg = msg:gsub("%[([%a]+)%]", ReplacementFunc):gsub("@([%a]+)", ReplacementFunc)
+
+        local function ReplaceAt(name)
+            local dbKey = name:lower()
+            local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+            local color = GetClassColorCode(data and data.class, name)
+            local displayName = name:gsub("^%l", string.upper)
+            return string.format("|Hplayer:%s|h%s@%s|r|h", name, color, displayName)
+        end
+
+        msg = msg:gsub("%[([%a]+)%]", ReplaceBracket)
+        msg = msg:gsub("^@([%a]+)", ReplaceAt)
+        msg = msg:gsub("([^%w])@([%a]+)", function(prefix, name) return prefix .. ReplaceAt(name) end)
+        
         msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
         return false, msg, ...
     end
