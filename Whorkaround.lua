@@ -582,7 +582,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             
             for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
             for name in text:gmatch("^@([%a]+)") do TriggerQuery(name) end
-            for _, name in text:gmatch("([^%w])@([%a]+)") do TriggerQuery(name) end
+            for name in text:gmatch("%s@([%a]+)") do TriggerQuery(name) end
         end
     end
 
@@ -1029,7 +1029,7 @@ local function ChatLinkFilter(self, event, msg, ...)
 
         msg = msg:gsub("%[([%a]+)%]", ReplaceBracket)
         msg = msg:gsub("^@([%a]+)", ReplaceAt)
-        msg = msg:gsub("([^%w])@([%a]+)", function(prefix, name) return prefix .. ReplaceAt(name) end)
+        msg = msg:gsub("(%s)@([%a]+)", function(space, name) return space .. ReplaceAt(name) end)
         
         msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
         return false, msg, ...
