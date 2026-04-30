@@ -13,13 +13,25 @@ Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
 
 -- Class lookup table for 3.3.5 (Project Epoch: No Death Knights)
 local localizedClassMap = {
-    ["Warrior"] = "WARRIOR", ["Paladin"] = "PALADIN", ["Hunter"] = "HUNTER",
-    ["Rogue"] = "ROGUE", ["Priest"] = "PRIEST", ["Shaman"] = "SHAMAN",
-    ["Mage"] = "MAGE", ["Warlock"] = "WARLOCK", ["Druid"] = "DRUID",
+    ["Warrior"] = "WARRIOR",
+    ["Paladin"] = "PALADIN",
+    ["Hunter"] = "HUNTER",
+    ["Rogue"] = "ROGUE",
+    ["Priest"] = "PRIEST",
+    ["Shaman"] = "SHAMAN",
+    ["Mage"] = "MAGE",
+    ["Warlock"] = "WARLOCK",
+    ["Druid"] = "DRUID",
 }
 local validClasses = {
-    ["WARRIOR"] = true, ["PALADIN"] = true, ["HUNTER"] = true, ["ROGUE"] = true,
-    ["PRIEST"] = true, ["SHAMAN"] = true, ["MAGE"] = true, ["WARLOCK"] = true,
+    ["WARRIOR"] = true,
+    ["PALADIN"] = true,
+    ["HUNTER"] = true,
+    ["ROGUE"] = true,
+    ["PRIEST"] = true,
+    ["SHAMAN"] = true,
+    ["MAGE"] = true,
+    ["WARLOCK"] = true,
     ["DRUID"] = true,
 }
 Whorkaround.validClasses = validClasses -- Shared with Comm.lua
@@ -56,7 +68,7 @@ local function GetPlayerInfoFromGuild(targetName)
     if not IsInGuild() then return end
     for i = 1, GetNumGuildMembers() do
         local name, rank, rankIndex, level, class, zone, note, officernote, online, status, classFileName =
-        GetGuildRosterInfo(i)
+            GetGuildRosterInfo(i)
         if name and name:match("^([^%-]+)") == targetName then
             if level and level > 0 and class then return level, class, (online and zone or "Offline") end
         end
@@ -187,12 +199,12 @@ end
 -- Function to print the "Who" result
 function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, faction, timestamp)
     if not name then return end
-    
+
     local prefix = "|cff1abc9cWhorkaround:|r "
     local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
     local displayName = name:gsub("^%l", string.upper)
     local classColor = GetClassColorCode(class, name)
-    
+
     -- TitleCase the class for professional appearance
     local displayClass = class or "Unknown"
     if displayClass:lower() ~= "unknown" then
@@ -202,7 +214,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
     isLive = isLive or isDataRecent
     local playerFaction = UnitFactionGroup("player") or "Unknown"
-    local enemyFaction = (playerFaction == "Horde") and "Alliance" or (playerFaction == "Alliance" and "Horde" or "Unknown")
+    local enemyFaction = (playerFaction == "Horde") and "Alliance" or
+    (playerFaction == "Alliance" and "Horde" or "Unknown")
     local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
@@ -223,12 +236,15 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
             local isEnemy = (faction ~= playerFaction)
-            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and (time() - (cachedData.lastSeen or 0) < 2)
-            
+            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and
+            (time() - (cachedData.lastSeen or 0) < 2)
+
             if not isFresh then
                 local statusMsg = isEnemy and "identified as " .. faction or "appears to be offline"
                 for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor, displayName, statusMsg), 1, 1, 0)
+                    frame:AddMessage(
+                    string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor,
+                        displayName, statusMsg), 1, 1, 0)
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
@@ -249,7 +265,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         -- DATA QUALITY: Abort if essential data is still Unknown
         if displayClass == "Unknown" or displayArea == "Unknown" then return end
 
-        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor, displayName, displayLevel, displayFaction, displayClass, displayArea, timeText)
+        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor,
+            displayName, displayLevel, displayFaction, displayClass, displayArea, timeText)
 
         if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
@@ -265,7 +282,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         end
     elseif source == "FINAL_TIMEOUT" then
         for _, frame in ipairs(GetOutputFrames()) do
-            frame:AddMessage(string.format("%sNo data for |Hplayer:%s|h[|cffffffff%s|r]|h was found on the network.", prefix, name, displayName), 1, 1, 0)
+            frame:AddMessage(
+            string.format("%sNo data for |Hplayer:%s|h[|cffffffff%s|r]|h was found on the network.", prefix, name,
+                displayName), 1, 1, 0)
         end
     else
         local isSilent = (source == "PROXY" or source == "SILENT")
@@ -276,7 +295,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
             if source ~= "SILENT" and source ~= "PROXY" and source ~= "TIMEOUT_SILENT" then
                 for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(string.format("%sNo community data was found for |Hplayer:%s|h[|r%s%s|r]|h.", prefix, name, classColor, displayName), 1, 1, 0)
+                    frame:AddMessage(
+                    string.format("%sNo community data was found for |Hplayer:%s|h[|r%s%s|r]|h.", prefix, name,
+                        classColor, displayName), 1, 1, 0)
                 end
             end
         end
@@ -297,9 +318,10 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
 
     local now = GetTime()
-    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or (now - Whorkaround.broadcastThrottle[cleanName] > 1)
+    local canBroadcast = not Whorkaround.broadcastThrottle[cleanName] or
+    (now - Whorkaround.broadcastThrottle[cleanName] > 1)
 
-    -- BROADCAST RULES: 
+    -- BROADCAST RULES:
     -- 1. Only broadcast if data is LOCAL (FriendsList, Manual, Sighting, PROXY)
     -- 2. Only if not recently broadcasted
     local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting" or source == "PROXY")
@@ -320,7 +342,7 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
     if Whorkaround.networkWaiters[cleanName] then
         local currentBest = Whorkaround.bestNetworkHits[cleanName]
         local newIsLive = (isProxy == "P" or isProxy == true)
-        
+
         -- Priority: Live results > Cached results, then Newest > Oldest
         local isBetter = false
         if not currentBest then
@@ -333,8 +355,12 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
 
         if isBetter then
             Whorkaround.bestNetworkHits[cleanName] = {
-                level = level, class = class, zone = zone,
-                faction = faction, timestamp = timestamp, isLive = newIsLive
+                level = level,
+                class = class,
+                zone = zone,
+                faction = faction,
+                timestamp = timestamp,
+                isLive = newIsLive
             }
         end
 
@@ -362,8 +388,10 @@ function Whorkaround:TryAllOtherSources(name, silent)
     end
     local data = Whorkaround_DB and Whorkaround_DB[cleanName]
     if data and data.class then
-        if not silent then Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "Cache",
-                data.faction) end
+        if not silent then
+            Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "Cache",
+                data.faction)
+        end
         return true
     end
     return false
@@ -379,8 +407,12 @@ function Whorkaround:ShowStats()
         if type(data) == "table" then
             total = total + 1
             if data.source and sources[data.source] ~= nil then sources[data.source] = sources[data.source] + 1 end
-            if data.faction then factions[data.faction] = (factions[data.faction] or 0) + 1 else factions.Unknown =
-                factions.Unknown + 1 end
+            if data.faction then
+                factions[data.faction] = (factions[data.faction] or 0) + 1
+            else
+                factions.Unknown =
+                    factions.Unknown + 1
+            end
         end
     end
     local output = GetOutputFrames()
@@ -390,8 +422,10 @@ function Whorkaround:ShowStats()
         frame:AddMessage(string.format("- Factions: Alliance (|cff0070dd%d|r), Horde (|cffff2020%d|r)",
             factions.Alliance or 0, factions.Horde or 0))
         frame:AddMessage("- Sources: Manual: " ..
-        sources.FriendsList ..
-        ", Guild: " .. sources.GuildRoster .. ", Sightings: " .. sources.Sighting .. ", Comm: " .. sources.WhorkComm .. ", Cache: " .. sources.Cache)
+            sources.FriendsList ..
+            ", Guild: " ..
+            sources.GuildRoster ..
+            ", Sightings: " .. sources.Sighting .. ", Comm: " .. sources.WhorkComm .. ", Cache: " .. sources.Cache)
     end
 end
 
@@ -424,7 +458,8 @@ function Whorkaround:PurgeOldData()
         end
     end
     if count > 0 then
-        print(string.format("|cff1abc9cWhorkaround:|r Cleaned up |cffffd100%d|r expired records (older than %d weeks).", count, weeks))
+        print(string.format("|cff1abc9cWhorkaround:|r Cleaned up |cffffd100%d|r expired records (older than %d weeks).",
+            count, weeks))
     end
 end
 
@@ -446,10 +481,10 @@ function Whorkaround:Sighting(unit)
     local zone = GetRealZoneText()
     if Whorkaround_DB and level and level > 0 then
         local existing = Whorkaround_DB[cleanName] or {}
-        existing.class = class           -- Always authoritative from unit API
-        existing.level = level           -- Always authoritative
-        existing.faction = faction       -- Always authoritative
-        existing.zone = zone             -- Sighting zone = your zone (player is nearby)
+        existing.class = class     -- Always authoritative from unit API
+        existing.level = level     -- Always authoritative
+        existing.faction = faction -- Always authoritative
+        existing.zone = zone       -- Sighting zone = your zone (player is nearby)
         existing.lastSeen = time()
         existing.source = "Sighting"
         Whorkaround_DB[cleanName] = existing
@@ -478,7 +513,8 @@ local function SystemMessageFilter(self, event, msg)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             local elapsed = GetTime() - (type(startTime) == "number" and startTime or GetTime())
             if (type(startTime) == "number" or startTime == "PROXY" or startTime == "SILENT") and (elapsed < 2 or startTime == "PROXY" or startTime == "SILENT") then
-                if startTime ~= "PROXY" and startTime ~= "SILENT" then Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual") end
+                if startTime ~= "PROXY" and startTime ~= "SILENT" then Whorkaround:PrintWhoResult(name, nil, nil, nil,
+                        false, "Manual") end
                 Whorkaround.pendingQueries[name] = nil
                 return true
             end
@@ -529,7 +565,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             Whorkaround.networkWaiters[name] = nil
             local best = Whorkaround.bestNetworkHits[name]
             if best then
-                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm", best.faction, best.timestamp)
+                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm",
+                    best.faction, best.timestamp)
             else
                 local data = Whorkaround_DB and Whorkaround_DB[name]
                 if data then
@@ -630,21 +667,22 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if name then
                 local displayName = name:gsub("^%l", string.upper)
                 local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
-                
+
                 if Whorkaround.pendingQueries[cleanName] and not processed[cleanName] then
                     processed[cleanName] = true
-                    if not note or note == "" then 
+                    if not note or note == "" then
                         Whorkaround:Log("Tagging friend: " .. name, "LOCAL")
-                        SetFriendNotes(i, NOTE_ID) 
+                        SetFriendNotes(i, NOTE_ID)
                     end
                     if Whorkaround.pendingQueries[cleanName] == "PROXY" then
                         if connected then
-                            local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or "Unknown"
+                            local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or
+                            "Unknown"
                             Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
-                            
+
                             -- DE-DUPLICATION: Cancel any pending cached response schedule
                             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
-                            
+
                             Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
                             -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
@@ -681,11 +719,11 @@ function Whorkaround:ProxyQuery(name)
     if not name or name == "" or GetNumFriends() >= 100 then return end
     name = name:lower():gsub("^%s*(.-)%s*$", "%1") -- Clean key
     if Whorkaround.pendingQueries[name] or Whorkaround.networkWaiters[name] then return end
-    
+
     local displayName = name:gsub("^%l", string.upper)
 
     -- OPTIMIZATION: Check Target/Mouseover for INSTANT unit data
-    local units = {"target", "mouseover"}
+    local units = { "target", "mouseover" }
     for _, unit in ipairs(units) do
         if UnitIsPlayer(unit) and UnitName(unit):lower() == name then
             Whorkaround:Log("Unit match (" .. unit .. ") for " .. displayName .. "! Broadcasting immediately.", "PROXY")
@@ -693,7 +731,7 @@ function Whorkaround:ProxyQuery(name)
             local _, class = UnitClass(unit)
             local zone = GetRealZoneText() -- Same-zone assumption for units
             local faction = UnitFactionGroup(unit)
-            
+
             if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
             Whorkaround:Broadcast(displayName, level, class, zone, faction, time(), true)
             Whorkaround:PrintWhoResult(displayName, level, class, zone, false, "SILENT", faction)
@@ -704,7 +742,7 @@ function Whorkaround:ProxyQuery(name)
     -- NEW: Check Guild/Cache for INSTANT proxy response
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
-    
+
     if (gLevel and gLevel > 0) or (cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < 60)) then
         Whorkaround:Log("Instant Proxy match for " .. displayName .. "! Broadcasting immediately.", "PROXY")
         local level = gLevel or cached.level
@@ -712,10 +750,10 @@ function Whorkaround:ProxyQuery(name)
         local zone = gZone or cached.zone
         local faction = (cached and cached.faction) or UnitFactionGroup("player")
         local timestamp = (gLevel and gLevel > 0) and time() or cached.lastSeen
-        
+
         -- DE-DUPLICATION: Cancel any pending cached response schedule
         if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
-        
+
         Whorkaround:Broadcast(displayName, level, class, zone, faction, timestamp, true)
         return
     end
@@ -727,7 +765,9 @@ function Whorkaround:ProxyQuery(name)
     local alreadyFriend = false
     for i = 1, GetNumFriends() do
         local fName = GetFriendInfo(i)
-        if fName and fName:lower() == name then alreadyFriend = true; break end
+        if fName and fName:lower() == name then
+            alreadyFriend = true; break
+        end
     end
 
     if not alreadyFriend then
@@ -741,8 +781,8 @@ end
 function Whorkaround:Query(name, silent)
     if not name or name == "" then return end
     name = name:lower():gsub("^%s*(.-)%s*$", "%1") -- Clean key
-    if Whorkaround.pendingQueries[name] or Whorkaround.networkWaiters[name] then return end 
-    
+    if Whorkaround.pendingQueries[name] or Whorkaround.networkWaiters[name] then return end
+
     local displayName = name:gsub("^%l", string.upper)
     Whorkaround:Log("Query triggered for: " .. displayName .. (silent and " (Silent)" or ""), "LOCAL")
 
@@ -752,34 +792,34 @@ function Whorkaround:Query(name, silent)
         local _, class = UnitClass("player")
         local faction = UnitFactionGroup("player")
         Whorkaround:Log("Self-lookup hit for " .. displayName .. "!", "LOCAL")
-        if not silent then 
-            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) 
+        if not silent then
+            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction)
             Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
         end
         return
     end
 
     -- OPTIMIZATION: Check Target/Mouseover for INSTANT unit data
-    local units = {"target", "mouseover"}
+    local units = { "target", "mouseover" }
     for _, unit in ipairs(units) do
         if UnitIsPlayer(unit) and UnitName(unit):lower() == name then
             Whorkaround:Log("Unit match (" .. unit .. ") hit for " .. displayName .. "!", "LOCAL")
             local level = UnitLevel(unit)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
-            if not silent then 
-                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction) 
+            if not silent then
+                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction)
                 Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
             end
             return
         end
     end
 
-    -- STABILITY: 30s Query Throttle
+    -- STABILITY: 2s Query Throttle
     local now = GetTime()
-    if Whorkaround.queryThrottle[name] and (now - Whorkaround.queryThrottle[name] < 2) then 
+    if Whorkaround.queryThrottle[name] and (now - Whorkaround.queryThrottle[name] < 2) then
         Whorkaround:Log("Query throttled for " .. displayName, "LOCAL")
-        return 
+        return
     end
     Whorkaround.queryThrottle[name] = now
 
@@ -788,8 +828,8 @@ function Whorkaround:Query(name, silent)
     if gLevel and gLevel > 0 then
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
-        if not silent then 
-            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster") 
+        if not silent then
+            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, false, "GuildRoster")
         end
         if not isOffline then
             Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
@@ -801,31 +841,37 @@ function Whorkaround:Query(name, silent)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
     local playerFaction = UnitFactionGroup("player")
     local isEnemy = cached and cached.faction and (cached.faction ~= playerFaction and cached.faction ~= "Unknown")
-    
+
     -- Normal fresh cache check (Enemies < 10s, Same-faction < 5s)
     local threshold = isEnemy and 10 or 5
     if cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
         Whorkaround:Log("Fresh cache hit for " .. displayName .. ". Skipping Friends List.", "LOCAL")
         if not silent then
-            Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache", cached.faction, cached.lastSeen)
+            Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
+                cached.faction, cached.lastSeen)
         end
         -- Always broadcast fresh cache hits if we haven't recently
-        Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen, false)
+        Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
+            false)
         return
     end
 
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
-        if fName and fName:lower() == name then 
-            if not silent then Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, false, "FriendsList") end
-            return 
+        if fName and fName:lower() == name then
+            if not silent then Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, false,
+                    "FriendsList") end
+            return
         end
     end
 
-    if GetNumFriends() >= 100 then print("|cff1abc9cWhorkaround:|r List full!"); return end
+    if GetNumFriends() >= 100 then
+        print("|cff1abc9cWhorkaround:|r List full!"); return
+    end
     Whorkaround:Log("Starting Friends-List lookup for " .. displayName, "LOCAL")
     Whorkaround.lastActionTime = GetTime()
-    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); AddFriend(displayName)
+    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); AddFriend(
+    displayName)
 end
 
 local function OnEditBoxTextChanged(self)
@@ -929,19 +975,19 @@ SLASH_WCLEAR1 = "/whocleardb"; SlashCmdList["WCLEAR"] = function()
 end
 SLASH_WFIND1 = "/whofind"; SlashCmdList["WFIND"] = function(msg) Whorkaround:Find(msg) end
 SLASH_WDEBUG1 = "/whodebug"; SlashCmdList["WDEBUG"] = function() Whorkaround:ToggleDebug() end
-SLASH_WGUI1 = "/whogui"; SlashCmdList["WGUI"] = function() 
+SLASH_WGUI1 = "/whogui"; SlashCmdList["WGUI"] = function()
     if not FriendsFrame:IsShown() then ShowUIPanel(FriendsFrame) end
     -- Dynamically find the WHO tab to support different tab orders/localizations
     for i = 1, 5 do
-        local tab = _G["FriendsFrameTab"..i]
+        local tab = _G["FriendsFrameTab" .. i]
         if tab and tab:GetText() == (WHO or "Who") then
             tab:Click()
             break
         end
     end
-    if Whorkaround.ToggleButton and not WhorkaroundSettingsPanel:IsShown() then 
-        Whorkaround.ToggleButton:Click() 
-    end 
+    if Whorkaround.ToggleButton and not WhorkaroundSettingsPanel:IsShown() then
+        Whorkaround.ToggleButton:Click()
+    end
 end
 
 
