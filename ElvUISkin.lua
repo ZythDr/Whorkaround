@@ -84,6 +84,6 @@ function Whorkaround:ApplyElvUISkin()
     local browserFC = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserFactionColors
     if browserFC then
         browserFC:ClearAllPoints()
-        browserFC:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 65, -30)
+        browserFC:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -30, -32)
     end
 end
