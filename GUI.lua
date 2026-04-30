@@ -54,18 +54,21 @@ end
 local function CreateEditBox(parent, label, setting, tooltip)
     local container = CreateFrame("Frame", nil, parent)
     container:SetSize(160, 45)
-    
+
     local text = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     text:SetPoint("TOPLEFT", 0, 0); text:SetText(label)
-    
+
     local eb = CreateFrame("EditBox", nil, container, "InputBoxTemplate")
     eb:SetSize(140, 20); eb:SetPoint("TOPLEFT", 0, -12); eb:SetAutoFocus(false)
-    
+
     eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "") end)
     eb:SetScript("OnEnterPressed", function(self)
         Whorkaround_Settings[setting] = self:GetText()
         self:ClearFocus()
-        print("|cff1abc9cWhorkaround:|r " .. label .. " set to: |cffffd100" .. (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
+        print("|cff1abc9cWhorkaround:|r " ..
+        label ..
+        " set to: |cffffd100" ..
+        (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
     end)
     eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
@@ -78,7 +81,7 @@ local function CreateEditBox(parent, label, setting, tooltip)
         end)
         eb:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
-    
+
     return container
 end
 
@@ -88,10 +91,10 @@ local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, 
     local slider = CreateFrame("Slider", "WhorkaroundSlider" .. sliderCount, parent, "OptionsSliderTemplate")
     slider:SetWidth(125); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step or 1)
     _G[slider:GetName() .. "Low"]:SetText(minVal); _G[slider:GetName() .. "High"]:SetText(maxVal)
-    
+
     local text = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     text:SetPoint("BOTTOM", slider, "TOP", 0, 5)
-    
+
     local function UpdateText(val)
         text:SetText(string.format("%s: %d %s", label, val, unit or ""))
     end
@@ -106,7 +109,7 @@ local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, 
         Whorkaround_Settings[setting] = val
         UpdateText(val)
     end)
-    
+
     if tooltip then
         slider:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -116,7 +119,7 @@ local function CreateSlider(parent, label, setting, minVal, maxVal, step, unit, 
         end)
         slider:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
-    
+
     return slider
 end
 
@@ -124,7 +127,7 @@ function Whorkaround:InitGUI()
     if self.GUI then return end
     self.GUI = true
     local components = {}
-    
+
     local function CreateInlineEditBox(parent, label, setting, tooltip)
         local container = CreateFrame("Frame", nil, parent)
         container:SetSize(250, 26)
@@ -135,7 +138,8 @@ function Whorkaround:InitGUI()
         eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "1.0") end)
         eb:SetScript("OnEnterPressed", function(self)
             local val = tonumber(self:GetText())
-            if val and val >= 0.1 then Whorkaround_Settings[setting] = val else self:SetText(Whorkaround_Settings[setting] or "1.0") end
+            if val and val >= 0.1 then Whorkaround_Settings[setting] = val else self:SetText(Whorkaround_Settings
+                [setting] or "1.0") end
             self:ClearFocus()
         end)
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -150,49 +154,52 @@ function Whorkaround:InitGUI()
     end
 
     local tab1, tab2, settings, browserFactionColors
+    local browserStatsAlliance, browserStatsHorde, browserStatsAllianceHit, browserStatsHordeHit
+    local statsTotal, statsNetwork
 
     -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
-    browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors", "Colors names by faction in the browser.")
+    browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
+        "Colors names by faction in the browser.")
     browserFactionColors:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 60, -32)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
-    browserFactionColors:Hide() 
+    browserFactionColors:Hide()
     components.browserFactionColors = browserFactionColors
 
     -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
-    local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -13, 0)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
-    local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 10, 0)
     browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
 
     -- Tooltip Hitboxes
-    local aHit = CreateFrame("Frame", nil, WhoFrame)
-    aHit:SetSize(40, 20); aHit:SetPoint("CENTER", browserStatsAlliance); aHit:EnableMouse(true); aHit:Hide()
-    aHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
-    aHit:SetScript("OnEnter", function(self)
+    browserStatsAllianceHit = CreateFrame("Frame", nil, WhoFrame)
+    browserStatsAllianceHit:SetSize(40, 20); browserStatsAllianceHit:SetPoint("CENTER", browserStatsAlliance); browserStatsAllianceHit:EnableMouse(true); browserStatsAllianceHit:Hide()
+    browserStatsAllianceHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
+    browserStatsAllianceHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Alliance Players", 0, 0.44, 0.87)
         GameTooltip:Show()
     end)
-    aHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    components.browserStatsAllianceHit = aHit
+    browserStatsAllianceHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    components.browserStatsAllianceHit = browserStatsAllianceHit
 
-    local hHit = CreateFrame("Frame", nil, WhoFrame)
-    hHit:SetSize(40, 20); hHit:SetPoint("CENTER", browserStatsHorde); hHit:EnableMouse(true); hHit:Hide()
-    hHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
-    hHit:SetScript("OnEnter", function(self)
+    browserStatsHordeHit = CreateFrame("Frame", nil, WhoFrame)
+    browserStatsHordeHit:SetSize(40, 20); browserStatsHordeHit:SetPoint("CENTER", browserStatsHorde); browserStatsHordeHit:EnableMouse(true); browserStatsHordeHit:Hide()
+    browserStatsHordeHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
+    browserStatsHordeHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Horde Players", 1, 0.13, 0.13)
         GameTooltip:Show()
     end)
-    hHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    components.browserStatsHordeHit = hHit
+    browserStatsHordeHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    components.browserStatsHordeHit = browserStatsHordeHit
 
     -- Settings Panel
     settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
@@ -202,10 +209,10 @@ function Whorkaround:InitGUI()
     settings:SetFrameLevel(WhoFrame:GetFrameLevel() + 50)
     settings:EnableMouse(true)
     settings:Hide()
-    
+
     local bg = settings:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(); bg:SetTexture(0, 0, 0, 0.85)
-    
+
     ---------------------------------------------------------
     -- PIGGYBACK LOGIC (Helpers moved up for SyncUI scope)
     ---------------------------------------------------------
@@ -215,21 +222,28 @@ function Whorkaround:InitGUI()
     local function GetRelativeTime(ts)
         if not ts or ts == 0 then return "Unknown" end
         local diff = time() - ts
-        if diff < 60 then return "Just now"
-        elseif diff < 3600 then return math.floor(diff/60) .. "m ago"
-        elseif diff < 86400 then return math.floor(diff/3600) .. "h ago"
-        else return math.floor(diff/86400) .. "d ago" end
+        if diff < 60 then
+            return "Just now"
+        elseif diff < 3600 then
+            return math.floor(diff / 60) .. "m ago"
+        elseif diff < 86400 then
+            return math.floor(diff / 3600) .. "h ago"
+        else
+            return math.floor(diff / 86400) .. "d ago"
+        end
     end
 
     local function Whorkaround_WhoList_Update()
         if not tab1 or not tab1:GetChecked() then return end
-        
+
         local query = (WhoFrameEditBox:GetText() or ""):lower()
         local data = {}
         if Whorkaround_DB then
             for name, entry in pairs(Whorkaround_DB) do
                 if query == "" or name:lower():find(query) or (entry.class and entry.class:lower():find(query)) or (entry.zone and entry.zone:lower():find(query)) then
-                    table.insert(data, { name = name, level = entry.level or 0, class = entry.class, zone = entry.zone, guild = entry.guild, faction = entry.faction, seen = entry.lastSeen or 0 })
+                    table.insert(data,
+                        { name = name, level = entry.level or 0, class = entry.class, zone = entry.zone, guild = entry
+                        .guild, faction = entry.faction, seen = entry.lastSeen or 0 })
                 end
             end
         end
@@ -252,7 +266,7 @@ function Whorkaround:InitGUI()
         local numWhos = #data
         local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
         FauxScrollFrame_Update(WhoListScrollFrame, numWhos, 17, 16)
-        
+
         -- Force the scrollbar to be active and have the correct range
         local scrollBar = WhoListScrollFrameScrollBar
         if numWhos > 17 then
@@ -262,51 +276,55 @@ function Whorkaround:InitGUI()
             scrollBar:SetMinMaxValues(0, 0)
             scrollBar:Hide()
         end
-        
+
         WhoFrameTotals:SetText(string.format("%d People Found", numWhos))
-        
+
         -- Update Faction Counters in Browser
         local aCount, hCount = 0, 0
         for _, d in ipairs(data) do
-            if d.faction == "Alliance" then aCount = aCount + 1
-            elseif d.faction == "Horde" then hCount = hCount + 1 end
+            if d.faction == "Alliance" then
+                aCount = aCount + 1
+            elseif d.faction == "Horde" then
+                hCount = hCount + 1
+            end
         end
         browserStatsAlliance:SetText("|cff0070dd" .. aCount .. "|r")
         browserStatsHorde:SetText("|cffff2020" .. hCount .. "|r")
 
         local dCol = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
-        
+
         for i = 1, 17 do
-            local button = _G["WhoFrameButton"..i]
+            local button = _G["WhoFrameButton" .. i]
             if not button then break end
-            local nameText = _G["WhoFrameButton"..i.."Name"]
-            local levelText = _G["WhoFrameButton"..i.."Level"]
-            local classText = _G["WhoFrameButton"..i.."Class"]
-            local variableText = _G["WhoFrameButton"..i.."Variable"]
-            
+            local nameText = _G["WhoFrameButton" .. i .. "Name"]
+            local levelText = _G["WhoFrameButton" .. i .. "Level"]
+            local classText = _G["WhoFrameButton" .. i .. "Class"]
+            local variableText = _G["WhoFrameButton" .. i .. "Variable"]
+
             local d = data[i + offset]
             if d then
                 local displayName = d.name:gsub("^%l", string.upper)
-                local displayClass = (d.class or "Unknown"):lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper()..rest end)
+                local displayClass = (d.class or "Unknown"):lower():gsub("(%a)([%w_']*)",
+                    function(first, rest) return first:upper() .. rest end)
                 local classKey = d.class and d.class:upper():gsub(" ", "") or ""
                 local color
                 if Whorkaround_Settings and Whorkaround_Settings.factionColors then
                     -- Faction-based coloring
                     if d.faction == "Horde" then
-                        color = {r=1, g=0.13, b=0.13}
+                        color = { r = 1, g = 0.13, b = 0.13 }
                     elseif d.faction == "Alliance" then
-                        color = {r=0, g=0.44, b=0.87}
+                        color = { r = 0, g = 0.44, b = 0.87 }
                     else
-                        color = {r=0.7, g=0.7, b=0.7}
+                        color = { r = 0.7, g = 0.7, b = 0.7 }
                     end
                 else
                     -- Class-based coloring (default)
-                    color = RAID_CLASS_COLORS[classKey] or {r=1, g=1, b=1}
+                    color = RAID_CLASS_COLORS[classKey] or { r = 1, g = 1, b = 1 }
                 end
                 nameText:SetText(displayName); nameText:SetTextColor(color.r, color.g, color.b)
                 levelText:SetText((d.level or 0) > 0 and d.level or "??")
                 classText:SetText(displayClass)
-                
+
                 -- Support for ElvUI Class Icons
                 if button.icon then
                     if classKey ~= "" and _G.CLASS_ICON_TCOORDS[classKey] then
@@ -316,15 +334,22 @@ function Whorkaround:InitGUI()
                         button.icon:Hide()
                     end
                 end
-                
-                if dCol == "guild" then variableText:SetText(d.guild or "")
-                elseif dCol == "race" then variableText:SetText(d.race or "")
-                elseif dCol == "seen" then variableText:SetText(GetRelativeTime(d.seen or 0))
-                else variableText:SetText(d.zone or "") end
-                
+
+                if dCol == "guild" then
+                    variableText:SetText(d.guild or "")
+                elseif dCol == "race" then
+                    variableText:SetText(d.race or "")
+                elseif dCol == "seen" then
+                    variableText:SetText(GetRelativeTime(d.seen or 0))
+                else
+                    variableText:SetText(d.zone or "")
+                end
+
                 button.playerName = d.name
                 button:Show()
-            else button:Hide() end
+            else
+                button:Hide()
+            end
         end
     end
 
@@ -332,7 +357,7 @@ function Whorkaround:InitGUI()
 
     local function UpdateSortArrows()
         for i = 1, 4 do
-            local arrow = _G["WhoFrameColumnHeader"..i.."SortArrow"]
+            local arrow = _G["WhoFrameColumnHeader" .. i .. "SortArrow"]
             if arrow then
                 local colKey = (i == 1 and "name") or (i == 3 and "level") or (i == 4 and "class") or ""
                 if i == 2 then
@@ -341,8 +366,11 @@ function Whorkaround:InitGUI()
                 end
                 if currentSortKey == colKey then
                     arrow:Show()
-                    if currentSortOrder == "ASC" then arrow:SetTexCoord(0, 0.5625, 0, 1) else arrow:SetTexCoord(0, 0.5625, 1, 0) end
-                else arrow:Hide() end
+                    if currentSortOrder == "ASC" then arrow:SetTexCoord(0, 0.5625, 0, 1) else arrow:SetTexCoord(0, 0.5625,
+                            1, 0) end
+                else
+                    arrow:Hide()
+                end
             end
         end
     end
@@ -351,30 +379,38 @@ function Whorkaround:InitGUI()
         if not tab1 or not tab1:GetChecked() or not WhoFrame:IsVisible() then return end
         Whorkaround_WhoList_Update()
     end
-    
+
     -- Refresh browser immediately when toggling faction colors
     browserFactionColors:HookScript("OnClick", function()
         if tab1 and tab1:GetChecked() then
             Whorkaround_WhoList_Update()
         end
     end)
-    
+
     local function CycleSort(key)
         if currentSortKey == key then
-            if currentSortOrder == "ASC" then currentSortOrder = "DESC" else currentSortKey = "seen"; currentSortOrder = "DESC" end
-        else currentSortKey = key; currentSortOrder = "ASC" end
+            if currentSortOrder == "ASC" then currentSortOrder = "DESC" else
+                currentSortKey = "seen"; currentSortOrder = "DESC"
+            end
+        else
+            currentSortKey = key; currentSortOrder = "ASC"
+        end
         UpdateSortArrows(); Whorkaround_WhoList_Update()
     end
 
     local function Column_OnClick(self)
         if tab1 and tab1:GetChecked() then
             local name = self:GetName()
-            if name == "WhoFrameColumnHeader1" then CycleSort("name")
-            elseif name == "WhoFrameColumnHeader3" then CycleSort("level")
-            elseif name == "WhoFrameColumnHeader4" then CycleSort("class")
+            if name == "WhoFrameColumnHeader1" then
+                CycleSort("name")
+            elseif name == "WhoFrameColumnHeader3" then
+                CycleSort("level")
+            elseif name == "WhoFrameColumnHeader4" then
+                CycleSort("class")
             elseif name == "WhoFrameColumnHeader2" then
                 local col = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
-                CycleSort(col == "guild" and "guild" or (col == "race" and "race" or (col == "seen" and "seen" or "zone")))
+                CycleSort(col == "guild" and "guild" or
+                (col == "race" and "race" or (col == "seen" and "seen" or "zone")))
             end
         end
     end
@@ -387,11 +423,11 @@ function Whorkaround:InitGUI()
             UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, self.value)
             Whorkaround_WhoList_Update()
         end
-        
+
         info.text = "Zone"; info.value = "zone"
         info.checked = (selected == "zone")
         UIDropDownMenu_AddButton(info)
-        
+
         info.text = "Last Seen"; info.value = "seen"
         info.checked = (selected == "seen")
         UIDropDownMenu_AddButton(info)
@@ -412,7 +448,8 @@ function Whorkaround:InitGUI()
         if settingsActive then
             settings:Show()
             browserFactionColors:Hide()
-            WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4:Hide()
+            WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4
+                :Hide()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
@@ -425,7 +462,7 @@ function Whorkaround:InitGUI()
                 browserFactionColors:Show()
                 if not nativeScrollScript then nativeScrollScript = WhoListScrollFrame:GetScript("OnVerticalScroll") end
                 WhoListScrollFrame:SetScript("OnVerticalScroll", Whorkaround_OnVerticalScroll)
-                
+
                 -- Hijack EditBox Scripts
                 if not nativeEditBoxScripts.OnTextChanged then
                     nativeEditBoxScripts.OnTextChanged = WhoFrameEditBox:GetScript("OnTextChanged")
@@ -443,9 +480,10 @@ function Whorkaround:InitGUI()
                 UIDropDownMenu_Initialize(WhoFrameDropDown, Whorkaround_DropDown_Initialize)
                 local cur = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
                 if cur ~= "zone" and cur ~= "seen" then UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "zone") end
-                
-                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4:Show()
-                WhoListScrollFrame:Show(); 
+
+                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4
+                    :Show()
+                WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
@@ -455,7 +493,7 @@ function Whorkaround:InitGUI()
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
-                
+
                 -- Restore EditBox Scripts
                 if nativeEditBoxScripts.OnTextChanged then
                     WhoFrameEditBox:SetScript("OnTextChanged", nativeEditBoxScripts.OnTextChanged)
@@ -465,8 +503,9 @@ function Whorkaround:InitGUI()
                 end
 
                 UIDropDownMenu_Initialize(WhoFrameDropDown, WhoFrameDropDown_Initialize)
-                
-                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4:Show()
+
+                WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4
+                    :Show()
                 WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
@@ -476,34 +515,37 @@ function Whorkaround:InitGUI()
             end
         end
     end
-    
+
     settings:SetScript("OnHide", function()
         SyncUI()
     end)
 
     local header = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     header:SetPoint("TOPLEFT", 20, -15); header:SetText("Whorkaround Options")
-    
+
     local version = GetAddOnMetadata("Whorkaround", "Version") or "1.4.11"
     local verText = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     verText:SetPoint("LEFT", header, "RIGHT", 10, 0); verText:SetText("v" .. version); verText:SetTextColor(0.5, 0.5, 0.5)
 
-    local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab", "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
+    local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab",
+        "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
     tabBox:SetPoint("TOPLEFT", 22, -45)
     components.tabBox = tabBox
     -- Wider editbox for Tab names and centered alignment
-    for _, child in ipairs({tabBox:GetChildren()}) do
-        if child:IsObjectType("EditBox") then 
-            child:SetWidth(125) 
+    for _, child in ipairs({ tabBox:GetChildren() }) do
+        if child:IsObjectType("EditBox") then
+            child:SetWidth(125)
             child:SetPoint("TOPLEFT", 2, -14) -- Slight nudge for better alignment with label
         end
     end
 
-    local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho", "Automatically toggles the database view when opening the Social panel.")
+    local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho",
+        "Automatically toggles the database view when opening the Social panel.")
     autoOpen:SetPoint("TOPLEFT", 192, -55) -- Centered in column
     components.autoOpen = autoOpen
 
-    local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy", "Allows other users to query players through you.")
+    local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy",
+        "Allows other users to query players through you.")
     proxyCheck:SetPoint("TOPLEFT", 22, -100)
     components.proxyCheck = proxyCheck
 
@@ -515,14 +557,14 @@ function Whorkaround:InitGUI()
     proxyModeBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
     proxyModeBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
     proxyModeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-    
+
     UIDropDownMenu_Initialize(proxyModeMenu, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
         info.text = "Always"
         info.func = function() Whorkaround_Settings.proxyOutCombat = false end
         info.checked = (Whorkaround_Settings.proxyOutCombat == false)
         UIDropDownMenu_AddButton(info)
-        
+
         info.text = "Out of Combat"
         info.func = function() Whorkaround_Settings.proxyOutCombat = true end
         info.checked = (Whorkaround_Settings.proxyOutCombat == true)
@@ -534,37 +576,40 @@ function Whorkaround:InitGUI()
     end)
     components.proxyModeBtn = proxyModeBtn
 
-    local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec", "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
-    proxyCooldown:SetPoint("TOPLEFT", 22, -165) 
+    local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec",
+        "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
+    proxyCooldown:SetPoint("TOPLEFT", 22, -165)
     components.proxyCooldown = proxyCooldown
 
-    local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks", "Automatically removes players from your local database if they haven't been seen in this many weeks.")
+    local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks",
+        "Automatically removes players from your local database if they haven't been seen in this many weeks.")
     retentionSlider:SetPoint("TOPLEFT", 192, -165)
     components.retentionSlider = retentionSlider
 
     -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     statsHeader:SetPoint("BOTTOMLEFT", 22, 65); statsHeader:SetText("Database Status")
-    
-    local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
+
+    local statsTotalLabel = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statsTotalLabel:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotalLabel:SetTextColor(0.53, 0.53, 0.53)
+    statsTotal = statsTotalLabel
     components.statsTotal = statsTotal
 
-    local statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsNetwork:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
     statsNetwork:SetTextColor(0.53, 0.53, 0.53)
     components.statsNetwork = statsNetwork
 
     -- Maintenance Dropdown (Hidden anchor frame)
     local maintenanceDropDown = CreateFrame("Frame", "WhorkaroundMaintenanceDropDown", settings, "UIDropDownMenuTemplate")
-    
+
     UIDropDownMenu_Initialize(maintenanceDropDown, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
         info.text = "|cffff2020Clear Database|r"
         info.notCheckable = true
         info.func = function() StaticPopup_Show("WHORKAROUND_CONFIRM_CLEAR") end
         UIDropDownMenu_AddButton(info)
-        
+
         info.text = "Close Menu"
         info.notCheckable = true
         info.func = function() CloseDropDownMenus() end
@@ -577,11 +622,11 @@ function Whorkaround:InitGUI()
     maintenanceBtn:SetPoint("LEFT", statsHeader, "RIGHT", 5, 0)
     maintenanceBtn:SetNormalTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
     maintenanceBtn:GetNormalTexture():SetRotation(math.rad(-90)) -- Point down
-    
+
     maintenanceBtn:SetScript("OnClick", function(self)
         ToggleDropDownMenu(1, nil, maintenanceDropDown, self, 0, 0)
     end)
-    
+
     maintenanceBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Database Maintenance", 1, 1, 1)
@@ -601,21 +646,14 @@ function Whorkaround:InitGUI()
         end)
         frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
-    
+
     local function UpdateStats()
-        if not Whorkaround_DB then statsTotal:SetText("No data available."); statsFactions:SetText(""); return end
-        local total, alliance, horde = 0, 0, 0
-        for name, data in pairs(Whorkaround_DB) do
-            total = total + 1
-            if data.faction == "Alliance" then alliance = alliance + 1
-            elseif data.faction == "Horde" then horde = horde + 1 end
+        if not Whorkaround_DB then
+            statsTotal:SetText("No data available."); return
         end
+        local total = 0
+        for _ in pairs(Whorkaround_DB) do total = total + 1 end
         statsTotal:SetText(string.format("Total Players: %d", total))
-        local aIcon = "|TInterface\\PVPFrame\\PVP-Currency-Alliance:20:20:0:5|t"
-        local hIcon = "|TInterface\\PVPFrame\\PVP-Currency-Horde:20:20:0:5|t"
-        statsFactions:SetText(string.format("%s |cff0070dd%d|r      %s |cffff2020%d|r", aIcon, alliance, hIcon, horde))
-        SetStatTooltip(aHit, "Alliance", {r=0, g=0.44, b=0.87}, alliance)
-        SetStatTooltip(hHit, "Horde", {r=1, g=0.12, b=0.12}, horde)
         -- Network peer counts (populated by Comm.lua passively)
         local peerCount, proxyCount = 0, 0
         for _ in pairs(Whorkaround.networkPeers or {}) do peerCount = peerCount + 1 end
@@ -637,12 +675,12 @@ function Whorkaround:InitGUI()
     if Whorkaround.SkinGUIComponents then
         Whorkaround:SkinGUIComponents(components)
     end
-    
+
     WhoFrameColumnHeader1:HookScript("OnClick", Column_OnClick)
     WhoFrameColumnHeader2:HookScript("OnClick", Column_OnClick)
     WhoFrameColumnHeader3:HookScript("OnClick", Column_OnClick)
     WhoFrameColumnHeader4:HookScript("OnClick", Column_OnClick)
-    
+
     local function WhoButton_OnClick_Hook(self, button)
         if tab1 and tab1:GetChecked() and self.playerName then
             if button == "LeftButton" and IsShiftKeyDown() then
@@ -650,9 +688,13 @@ function Whorkaround:InitGUI()
                 if d then
                     local displayName = self.playerName:gsub("^%l", string.upper)
                     local link = string.format("|Hplayer:%s|h[%s]|h", self.playerName, displayName)
-                    local eb = ChatEdit_GetActiveWindow() or (LastSayName and _G[LastSayName.."EditBox"]) or _G["ChatFrameEditBox"]
-                    if eb and eb:IsVisible() then eb:Insert(link)
-                    else print(string.format("%s: Level %d %s %s - %s", link, d.level, d.faction or "", d.class, d.zone)) end
+                    local eb = ChatEdit_GetActiveWindow() or (LastSayName and _G[LastSayName .. "EditBox"]) or
+                    _G["ChatFrameEditBox"]
+                    if eb and eb:IsVisible() then
+                        eb:Insert(link)
+                    else
+                        print(string.format("%s: Level %d %s %s - %s", link, d.level, d.faction or "", d.class, d.zone))
+                    end
                 end
             elseif button == "LeftButton" then
                 WhoFrame.selectedWho = self.playerName
@@ -661,7 +703,7 @@ function Whorkaround:InitGUI()
             end
         end
     end
-    for i=1, 17 do _G["WhoFrameButton"..i]:HookScript("OnClick", WhoButton_OnClick_Hook) end
+    for i = 1, 17 do _G["WhoFrameButton" .. i]:HookScript("OnClick", WhoButton_OnClick_Hook) end
 
     -- Mouse wheel support for the list
     WhoFrame:EnableMouseWheel(true)
@@ -704,7 +746,8 @@ function Whorkaround:InitGUI()
     tab1:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
     tab1:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     tab1:SetCheckedTexture("Interface\\Buttons\\CheckButtonHilight")
-    local tab1Bg = tab1:CreateTexture(nil, "BACKGROUND"); tab1Bg:SetSize(64, 64); tab1Bg:SetPoint("TOPLEFT", -3, 11); tab1Bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+    local tab1Bg = tab1:CreateTexture(nil, "BACKGROUND"); tab1Bg:SetSize(64, 64); tab1Bg:SetPoint("TOPLEFT", -3, 11); tab1Bg
+        :SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
     tab1:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Database Browser", 1, 1, 1); GameTooltip:Show()
     end)
@@ -720,9 +763,11 @@ function Whorkaround:InitGUI()
     tab2:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
     tab2:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     tab2:SetCheckedTexture("Interface\\Buttons\\CheckButtonHilight")
-    local tab2Bg = tab2:CreateTexture(nil, "BACKGROUND"); tab2Bg:SetSize(64, 64); tab2Bg:SetPoint("TOPLEFT", -3, 11); tab2Bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+    local tab2Bg = tab2:CreateTexture(nil, "BACKGROUND"); tab2Bg:SetSize(64, 64); tab2Bg:SetPoint("TOPLEFT", -3, 11); tab2Bg
+        :SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
     tab2:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Whorkaround Options", 1, 1, 1); GameTooltip:Show()
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Whorkaround Options", 1, 1, 1); GameTooltip
+            :Show()
     end)
     tab2:SetScript("OnLeave", function() GameTooltip:Hide() end)
     tab2:SetScript("OnClick", function(self)
@@ -731,17 +776,18 @@ function Whorkaround:InitGUI()
     end)
 
 
-    
+
     Whorkaround.ToggleButton = tab1
-    
+
     -- Persistent Visibility Lockdown
     local function Lockdown()
         if tab2 and tab2:GetChecked() then
-            WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4:Hide()
+            WhoFrameColumnHeader1:Hide(); WhoFrameColumnHeader2:Hide(); WhoFrameColumnHeader3:Hide(); WhoFrameColumnHeader4
+                :Hide()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
-            if browserStatsAlliance then 
+            if browserStatsAlliance then
                 browserStatsAlliance:Hide(); browserStatsAllianceHit:Hide()
                 browserStatsHorde:Hide(); browserStatsHordeHit:Hide()
             end
@@ -756,7 +802,7 @@ function Whorkaround:InitGUI()
         Lockdown()
     end)
 
-    Whorkaround.SetGUIState = function(show) 
+    Whorkaround.SetGUIState = function(show)
         if show then tab2:SetChecked(true) else tab2:SetChecked(false) end
         SyncUI()
     end
