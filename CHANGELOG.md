@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.22] - 2026-04-30
+
+### Fixed
+- Backward Compatibility: Fixed a parsing bug where network requests from older Whorkaround clients (versions before 1.4.15) were being incorrectly processed, causing names to be truncated and occasionally triggering ghost lookups and chat spam on the receiving end.
+
 ## [1.4.21] - 2026-04-30
 
 ### Added
