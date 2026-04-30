@@ -565,27 +565,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     self.timer = 0
     local now = GetTime()
     
-    -- EDITBOX DEBOUNCE (3.3.5 compatible)
-    if Whorkaround.editBoxQueryTimer and now >= Whorkaround.editBoxQueryTimer then
-        local text = Whorkaround.editBoxQueryText
-        Whorkaround.editBoxQueryTimer = nil
-        if text then
-            Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
-            local function TriggerQuery(name)
-                local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
-                
-                local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-                if not data or (time() - (data.lastSeen or 0) > 300) then 
-                    Whorkaround:Query(dbKey, true) 
-                end
-            end
-            
-            for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-            for name in text:gmatch("^@([%a]+)%s") do TriggerQuery(name) end
-            for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
-        end
-    end
-
+    -- Removed debounce logic; now handled instantly in OnEditBoxTextChanged
     -- Collect expired pendingQueries to avoid mutating during pairs()
         wipe(expiredQueries)
         for name, qSource in pairs(Whorkaround.pendingQueries) do
@@ -953,9 +933,19 @@ end
 
 local function OnEditBoxTextChanged(self)
     local text = self:GetText()
-    if not text then return end
-    Whorkaround.editBoxQueryText = text
-    Whorkaround.editBoxQueryTimer = GetTime() + 0.3
+    if not text or text == "" then return end
+    
+    local function TriggerQuery(name)
+        local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+        if not data or (time() - (data.lastSeen or 0) > 300) then 
+            Whorkaround:Query(dbKey, true) 
+        end
+    end
+    
+    for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
+    for name in text:gmatch("^@([%a]+)%s") do TriggerQuery(name) end
+    for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
 end
 
 local function HookChat()
