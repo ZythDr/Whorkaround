@@ -249,35 +249,52 @@ function Whorkaround:InitGUI()
         end
     end
 
+    -- Browser Memory Optimization: Recyclable table pool
+    local browserData = {}
+    local browserPool = {}
+    local function GetPoolTable()
+        local t = table.remove(browserPool) or {}
+        return t
+    end
+    local function ReleasePoolTables()
+        for i = #browserData, 1, -1 do
+            local t = table.remove(browserData)
+            wipe(t)
+            table.insert(browserPool, t)
+        end
+    end
+
     local function Whorkaround_WhoList_Update()
         if not tab1 or not tab1:GetChecked() then return end
 
         local query = (WhoFrameEditBox:GetText() or ""):lower()
-        local data = {}
+        ReleasePoolTables()
         if Whorkaround_DB then
             for name, entry in pairs(Whorkaround_DB) do
                 if query == "" or name:lower():find(query) or (entry.class and entry.class:lower():find(query)) or (entry.zone and entry.zone:lower():find(query)) then
-                    table.insert(data,
-                        {
-                            name = name,
-                            level = entry.level or 0,
-                            class = entry.class,
-                            zone = entry.zone,
-                            guild = entry
-                                .guild,
-                            faction = entry.faction,
-                            seen = entry.lastSeen or 0
-                        })
+                    local t = GetPoolTable()
+                    t.name = name
+                    t.level = entry.level or 0
+                    t.class = entry.class
+                    t.zone = entry.zone
+                    t.guild = entry.guild
+                    t.faction = entry.faction
+                    t.seen = entry.lastSeen or 0
+                    table.insert(browserData, t)
                 end
             end
         end
-        table.sort(data, function(a, b)
+
+        table.sort(browserData, function(a, b)
             if currentSortKey == "seen" then
                 if a.seen == b.seen then return a.name:lower() < b.name:lower() end
                 return a.seen > b.seen
             end
-            local valA, valB = a[currentSortKey] or "", b[currentSortKey] or ""
-            if type(valA) == "string" then valA, valB = valA:lower(), valB:lower() end
+            local valA = a[currentSortKey] or ""
+            local valB = b[currentSortKey] or ""
+            if type(valA) == "string" then valA = valA:lower() end
+            if type(valB) == "string" then valB = valB:lower() end
+            
             if currentSortOrder == "ASC" then
                 if valA == valB then return a.seen > b.seen end
                 return valA < valB
@@ -287,7 +304,7 @@ function Whorkaround:InitGUI()
             end
         end)
 
-        local numWhos = #data
+        local numWhos = #browserData
         local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
         FauxScrollFrame_Update(WhoListScrollFrame, numWhos, 17, 16)
 
@@ -305,7 +322,7 @@ function Whorkaround:InitGUI()
 
         -- Update Faction Counters in Browser
         local aCount, hCount = 0, 0
-        for _, d in ipairs(data) do
+        for _, d in ipairs(browserData) do
             if d.faction == "Alliance" then
                 aCount = aCount + 1
             elseif d.faction == "Horde" then
@@ -325,27 +342,28 @@ function Whorkaround:InitGUI()
             local classText = _G["WhoFrameButton" .. i .. "Class"]
             local variableText = _G["WhoFrameButton" .. i .. "Variable"]
 
-            local d = data[i + offset]
+            local d = browserData[i + offset]
             if d then
                 local displayName = d.name:gsub("^%l", string.upper)
                 local displayClass = (d.class or "Unknown"):lower():gsub("(%a)([%w_']*)",
                     function(first, rest) return first:upper() .. rest end)
                 local classKey = d.class and d.class:upper():gsub(" ", "") or ""
-                local color
+                
+                local r, g, b = 1, 1, 1
                 if Whorkaround_Settings and Whorkaround_Settings.factionColors then
-                    -- Faction-based coloring
                     if d.faction == "Horde" then
-                        color = { r = 1, g = 0.13, b = 0.13 }
+                        r, g, b = 1, 0.13, 0.13
                     elseif d.faction == "Alliance" then
-                        color = { r = 0, g = 0.44, b = 0.87 }
+                        r, g, b = 0, 0.44, 0.87
                     else
-                        color = { r = 0.7, g = 0.7, b = 0.7 }
+                        r, g, b = 0.7, 0.7, 0.7
                     end
                 else
-                    -- Class-based coloring (default)
-                    color = RAID_CLASS_COLORS[classKey] or { r = 1, g = 1, b = 1 }
+                    local color = RAID_CLASS_COLORS[classKey]
+                    if color then r, g, b = color.r, color.g, color.b end
                 end
-                nameText:SetText(displayName); nameText:SetTextColor(color.r, color.g, color.b)
+                
+                nameText:SetText(displayName); nameText:SetTextColor(r, g, b)
                 levelText:SetText((d.level or 0) > 0 and d.level or "??")
                 classText:SetText(displayClass)
 
