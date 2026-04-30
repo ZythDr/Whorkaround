@@ -104,8 +104,20 @@ local colorCodeCache = {}
 
 -- Improved Class Color Detector (fast-path + cache + faction detection)
 local function GetClassColorCode(className, name)
-    if name then
-        local nameLower = name:lower()
+    local nameLower = name and name:lower() or nil
+    
+    -- Fast path: If a specific class is provided, generate and optionally cache it immediately
+    if className then
+        local tag = localizedClassMap[className] or className:upper()
+        local color = RAID_CLASS_COLORS[tag]
+        if color then
+            local code = string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
+            if nameLower then colorCodeCache[nameLower] = code end
+            return code
+        end
+    end
+
+    if nameLower then
         if colorCodeCache[nameLower] then return colorCodeCache[nameLower] end
 
         local units = { "player", "target", "focus", "mouseover", "party1", "party2", "party3", "party4", "raid1",
@@ -938,12 +950,12 @@ local function OnEditBoxTextChanged(self)
     local function TriggerQuery(name)
         local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-        if Whorkaround.DebugMode then
+        if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
             Whorkaround:Log("Editbox regex matched name: " .. name, "LOCAL")
         end
         if not data or (time() - (data.lastSeen or 0) > 300) then 
             Whorkaround:Query(dbKey, true) 
-        elseif Whorkaround.DebugMode then
+        elseif Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
             Whorkaround:Log("Skipping editbox query for " .. name .. " (Data is fresh)", "LOCAL")
         end
     end
