@@ -169,14 +169,14 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (Conditional Positioning)
     browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 25, -55)
-    browserStatsAlliance:SetJustifyH("LEFT")
+    browserStatsAlliance:SetPoint("TOP", WhoFrame, "TOP", -50, -55)
+    browserStatsAlliance:SetJustifyH("RIGHT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -25, -55)
-    browserStatsHorde:SetJustifyH("RIGHT")
+    browserStatsHorde:SetPoint("TOP", WhoFrame, "TOP", 50, -55)
+    browserStatsHorde:SetJustifyH("LEFT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
 
