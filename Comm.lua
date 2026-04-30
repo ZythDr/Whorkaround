@@ -422,6 +422,7 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
         -- Include version, timestamp, and proxy flag in the broadcast
         local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, dClass:upper(), zone, f, timestamp, p)
         
+        Whorkaround:Log("Broadcasting: " .. msg, "NETWORK")
         if _G.ChatThrottleLib then
             -- Default priority logic if no override: Live/Fresh = NORMAL, Stale = BULK
             local priority = priorityOverride or ((isProxy or timestamp > (time() - 10)) and "NORMAL" or "BULK")

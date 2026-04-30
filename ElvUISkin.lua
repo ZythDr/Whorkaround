@@ -27,6 +27,7 @@ function Whorkaround:SkinGUIComponents(components)
     if components.proxyCheck then S:HandleCheckBox(components.proxyCheck) end
     if components.browserFactionColors then S:HandleCheckBox(components.browserFactionColors) end
     if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
+    if components.debugCheck then S:HandleCheckBox(components.debugCheck) end
 
 
     if components.proxyCooldown then

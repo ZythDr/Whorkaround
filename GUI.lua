@@ -612,6 +612,14 @@ function Whorkaround:InitGUI()
     proxyCheck:SetPoint("TOPLEFT", 27, -100)
     components.proxyCheck = proxyCheck
 
+    local debugCheck = CreateCheckBox(settings, "Enable Debug", "debug",
+        "Prints detailed background actions to chat (Network, Proxy, Cleanup).")
+    debugCheck:SetPoint("TOPLEFT", 27, -220)
+    debugCheck:HookScript("OnClick", function(self)
+        Whorkaround.DebugMode = (self:GetChecked() == 1)
+    end)
+    components.debugCheck = debugCheck
+
     -- Proxy State Dropdown (Arrow Button)
     local proxyModeMenu = CreateFrame("Frame", "WhorkaroundProxyModeMenu", settings, "UIDropDownMenuTemplate")
     local proxyModeBtn = CreateFrame("Button", nil, settings)
