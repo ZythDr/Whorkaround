@@ -94,10 +94,12 @@ function Whorkaround:ApplyElvUISkin()
         bHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 10, 0)
     end
 
-    -- Handle Browser Faction Colors repositioning for ElvUI
+    -- Handle Browser Faction Colors repositioning for ElvUI (Mirrored to left side)
     local browserFC = Whorkaround.skinnedComponents and Whorkaround.skinnedComponents.browserFactionColors
     if browserFC then
         browserFC:ClearAllPoints()
-        browserFC:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -42, -32)
+        browserFC:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 65, -28)
+        browserFC.text:ClearAllPoints()
+        browserFC.text:SetPoint("LEFT", browserFC, "RIGHT", 2, 0)
     end
 end
