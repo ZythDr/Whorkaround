@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.19] - 2026-04-30
 
+### Changed
+- Chat Lookups: `@Name` and `[Name]` chat lookups are now much more reliable. The addon correctly waits for you to finish typing and press space before scanning the player.
+- Silent Updates: Typing `@Name` will now run a full background scan (including cross-faction requests) to refresh their data entirely silently, without spamming your chat log with results.
+- Network Traffic: Suppressed automatic network broadcasts for background cache hits to reduce overall network noise.
+
 ### Fixed
-- Broadcast Loop: Resolved an issue where typing in the chat editbox with an @name link would trigger continuous network broadcasts and friend-list lookups. Added a 30-second throttle to editbox-triggered queries.
-- Traffic Reduction: Suppressed automatic network broadcasts for silent background cache hits (such as those triggered by the UI or tooltips) to further minimize network noise.
+- Client Compatibility: Fixed a bug that caused the chat editbox lookups to fail silently on the 3.3.5 client.
 
 ## [1.4.18] - 2026-04-30
 
