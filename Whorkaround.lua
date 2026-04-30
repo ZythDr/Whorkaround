@@ -552,8 +552,6 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
             local function TriggerQuery(name)
                 local dbKey = name:lower()
-                if Whorkaround.lastEditBoxCheck[dbKey] and (now - Whorkaround.lastEditBoxCheck[dbKey] < 30) then return end
-                Whorkaround.lastEditBoxCheck[dbKey] = now
                 
                 local data = Whorkaround_DB and Whorkaround_DB[dbKey]
                 if not data or (time() - (data.lastSeen or 0) > 300) then 
