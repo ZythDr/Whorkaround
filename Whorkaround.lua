@@ -915,7 +915,6 @@ local function OnEditBoxTextChanged(self)
         
         for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
         for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
-        for name in text:gmatch("@([%a]+)$") do TriggerQuery(name) end
     end)
 end
 
