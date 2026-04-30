@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.20] - 2026-04-30
+## [1.4.21] - 2026-04-30
 
 ### Added
 - Debug Mode: Added an "Enable Debug" toggle to the Whorkaround Options panel. When enabled, this prints all background actions (network requests, proxy decisions, and database cleanups) directly to your chat window to help verify that the addon is functioning and communicating properly.
