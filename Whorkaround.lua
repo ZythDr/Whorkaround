@@ -659,6 +659,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
                             Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource)
+                            Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                             Whorkaround.pendingQueries[cleanName] = nil
                         else
