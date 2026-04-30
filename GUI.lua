@@ -157,10 +157,12 @@ function Whorkaround:InitGUI()
     local browserStatsAlliance, browserStatsHorde, browserStatsAllianceHit, browserStatsHordeHit
     local statsTotal, statsNetwork
 
-    -- Browser-specific Faction Colors toggle (Now in the browser UI, not settings)
+    -- Browser-specific Faction Colors toggle (Repositioned to right side)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
         "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 60, -32)
+    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -25, -32)
+    browserFactionColors.text:ClearAllPoints()
+    browserFactionColors.text:SetPoint("RIGHT", browserFactionColors, "LEFT", -2, 0)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
     browserFactionColors:Hide()
     components.browserFactionColors = browserFactionColors
