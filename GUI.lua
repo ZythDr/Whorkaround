@@ -160,28 +160,37 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (In-line with "People Found")
     local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", -8, 0)
+    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", -5, 0)
+    browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
-    local browserStatsAllianceIcon = WhoFrame:CreateTexture(nil, "OVERLAY")
-    browserStatsAllianceIcon:SetSize(14, 14)
-    browserStatsAllianceIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Alliance-Up")
-    browserStatsAllianceIcon:SetPoint("RIGHT", browserStatsAlliance, "LEFT", -2, 0)
-    browserStatsAllianceIcon:Hide()
-    components.browserStatsAllianceIcon = browserStatsAllianceIcon
-
     local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 8, 0)
+    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 5, 0)
+    browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
 
-    local browserStatsHordeIcon = WhoFrame:CreateTexture(nil, "OVERLAY")
-    browserStatsHordeIcon:SetSize(14, 14)
-    browserStatsHordeIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Horde-Up")
-    browserStatsHordeIcon:SetPoint("LEFT", browserStatsHorde, "RIGHT", 2, 0)
-    browserStatsHordeIcon:Hide()
-    components.browserStatsHordeIcon = browserStatsHordeIcon
+    -- Tooltip Hitboxes
+    local aHit = CreateFrame("Frame", nil, WhoFrame)
+    aHit:SetSize(40, 20); aHit:SetPoint("CENTER", browserStatsAlliance); aHit:EnableMouse(true); aHit:Hide()
+    aHit:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Alliance Players", 0, 0.44, 0.87)
+        GameTooltip:Show()
+    end)
+    aHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    components.browserStatsAllianceHit = aHit
+
+    local hHit = CreateFrame("Frame", nil, WhoFrame)
+    hHit:SetSize(40, 20); hHit:SetPoint("CENTER", browserStatsHorde); hHit:EnableMouse(true); hHit:Hide()
+    hHit:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Horde Players", 1, 0.13, 0.13)
+        GameTooltip:Show()
+    end)
+    hHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    components.browserStatsHordeHit = hHit
 
     -- Settings Panel
     settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
@@ -406,7 +415,7 @@ function Whorkaround:InitGUI()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
             browserStatsAlliance:Hide(); browserStatsHorde:Hide()
-            browserStatsAllianceIcon:Hide(); browserStatsHordeIcon:Hide()
+            browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
         else
             settings:Hide()
             browserFactionColors:Hide()
@@ -440,7 +449,7 @@ function Whorkaround:InitGUI()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Show(); browserStatsHorde:Show()
-                browserStatsAllianceIcon:Show(); browserStatsHordeIcon:Show()
+                browserStatsAllianceHit:Show(); browserStatsHordeHit:Show()
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
@@ -460,7 +469,7 @@ function Whorkaround:InitGUI()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
-                browserStatsAllianceIcon:Hide(); browserStatsHordeIcon:Hide()
+                browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
                 WhoList_Update()
             end
         end
@@ -731,8 +740,8 @@ function Whorkaround:InitGUI()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
             if browserStatsAlliance then 
-                browserStatsAlliance:Hide(); browserStatsAllianceIcon:Hide()
-                browserStatsHorde:Hide(); browserStatsHordeIcon:Hide()
+                browserStatsAlliance:Hide(); browserStatsAllianceHit:Hide()
+                browserStatsHorde:Hide(); browserStatsHordeHit:Hide()
             end
         end
     end
