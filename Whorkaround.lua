@@ -185,14 +185,16 @@ end
 local function GetRelativeTime(timestamp)
     if not timestamp or timestamp == 0 then return "Unknown" end
     local diff = time() - timestamp
+    if diff < 0 then diff = 0 end -- Handle clock drift
+
     if diff < 60 then
-        return "1 min ago"
+        return "just now"
     elseif diff < 3600 then
-        return string.format("%d min ago", diff / 60)
+        return string.format("%d min ago", math.floor(diff / 60))
     elseif diff < 86400 then
-        return string.format("%d hours ago", diff / 3600)
+        return string.format("%d hours ago", math.floor(diff / 3600))
     else
-        return string.format("%d days ago", diff / 86400)
+        return string.format("%d days ago", math.floor(diff / 86400))
     end
 end
 
@@ -210,13 +212,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     if displayClass:lower() ~= "unknown" then
         displayClass = displayClass:lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper() .. rest end)
     end
-    local timestamp = timestamp or time()
-    local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
-    isLive = isLive or isDataRecent
+    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
+    local timestamp = (timestamp and timestamp ~= 0) and timestamp or (cachedData and cachedData.lastSeen)
+    local isDataRecent = timestamp and (time() - timestamp < 10)
+    if isLive == nil then isLive = isDataRecent or false end
     local playerFaction = UnitFactionGroup("player") or "Unknown"
     local enemyFaction = (playerFaction == "Horde") and "Alliance" or
     (playerFaction == "Alliance" and "Horde" or "Unknown")
-    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
     -- DEDUPLICATION: Prevent double-prints within 100ms
@@ -247,6 +249,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                         displayName, statusMsg), 1, 1, 0)
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
+                Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
                 Whorkaround:Request(name, targetFactionTag)
                 return
@@ -270,7 +273,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
         if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
-            local line2 = string.format("%sData %s was successfully fetched from network.", prefix, statusLabel)
+            local actionMsg = (source == "WhorkComm") and "fetched from network" or "recovered from cache (Network timeout)"
+            local line2 = string.format("%sData %s was successfully %s.", prefix, statusLabel, actionMsg)
             for _, frame in ipairs(GetOutputFrames()) do
                 frame:AddMessage(line1, 1, 1, 0)
                 frame:AddMessage(line2, 1, 1, 0)
@@ -570,7 +574,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             else
                 local data = Whorkaround_DB and Whorkaround_DB[name]
                 if data then
-                    Whorkaround:PrintWhoResult(name, 0, data.class, "Unknown", false, "TIMEOUT", data.faction)
+                    Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "TIMEOUT", data.faction, data.lastSeen)
                 else
                     Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "FINAL_TIMEOUT")
                 end

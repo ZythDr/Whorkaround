@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.17] - 2026-04-30
+
+### Changed
+- Proxy Tracking: Enhanced proxy peer detection. Anyone replying with a proxy-tagged response (:P) is now automatically counted as a proxy peer, improving network statistics.
+- Relative Time Precision: Overhauled the relative time logic to handle clock drift between players. Events under 60s now show as 'just now' instead of '1 min ago', and all time units now use strict floor rounding for accuracy.
+
+### Fixed
+- Stale Data Reporting: Fixed a bug where results from previous network searches could incorrectly appear as 'Live' data for new searches.
+- Timestamp Integrity: Resolved an issue where offline players would falsely appear as 'just now' sighted during network timeouts due to improper timestamp defaulting.
+- Network Fallback Clarity: Updated chat output to clearly distinguish between successful network fetches and local cache recoveries.
+- Timeout Data Restoration: Fixed a missing timestamp in the timeout handler that caused cached results to show as '(Unknown)' instead of their actual age.
+
 ## [1.4.16] - 2026-04-30
 
 ### Fixed
