@@ -158,6 +158,17 @@ function Whorkaround:InitGUI()
     browserFactionColors:Hide() 
     components.browserFactionColors = browserFactionColors
 
+    -- Browser Faction Counters (In-line with "People Found")
+    local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", -15, 0)
+    browserStatsAlliance:Hide()
+    components.browserStatsAlliance = browserStatsAlliance
+
+    local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 15, 0)
+    browserStatsHorde:Hide()
+    components.browserStatsHorde = browserStatsHorde
+
     -- Settings Panel
     settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
     settings:SetPoint("TOPLEFT", WhoFrame, "TOPLEFT", 14, -70)
@@ -228,6 +239,16 @@ function Whorkaround:InitGUI()
         end
         
         WhoFrameTotals:SetText(string.format("%d People Found", numWhos))
+        
+        -- Update Faction Counters in Browser
+        local aCount, hCount = 0, 0
+        for _, d in ipairs(data) do
+            if d.faction == "Alliance" then aCount = aCount + 1
+            elseif d.faction == "Horde" then hCount = hCount + 1 end
+        end
+        browserStatsAlliance:SetText("|cff0070ddA:|r " .. aCount)
+        browserStatsHorde:SetText("|cffff2020H:|r " .. hCount)
+
         local dCol = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
         
         for i = 1, 17 do
@@ -370,6 +391,7 @@ function Whorkaround:InitGUI()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
+            browserStatsAlliance:Hide(); browserStatsHorde:Hide()
         else
             settings:Hide()
             browserFactionColors:Hide()
@@ -402,6 +424,7 @@ function Whorkaround:InitGUI()
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
+                browserStatsAlliance:Show(); browserStatsHorde:Show()
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
@@ -420,6 +443,7 @@ function Whorkaround:InitGUI()
                 WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
+                browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 WhoList_Update()
             end
         end
@@ -496,20 +520,12 @@ function Whorkaround:InitGUI()
     
     local statsTotal = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotal:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotal:SetTextColor(0.53, 0.53, 0.53)
-    
-    local statsFactions = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsFactions:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
+    components.statsTotal = statsTotal
 
     local statsNetwork = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statsNetwork:SetPoint("TOPLEFT", statsFactions, "BOTTOMLEFT", 0, -8)
+    statsNetwork:SetPoint("TOPLEFT", statsTotal, "BOTTOMLEFT", 0, -8)
     statsNetwork:SetTextColor(0.53, 0.53, 0.53)
-    
-    -- Interaction Hitboxes for Tooltips
-    local aHit = CreateFrame("Frame", nil, settings)
-    aHit:SetSize(60, 20); aHit:SetPoint("LEFT", statsFactions, "LEFT", 0, 0); aHit:EnableMouse(true)
-    
-    local hHit = CreateFrame("Frame", nil, settings)
-    hHit:SetSize(60, 20); hHit:SetPoint("RIGHT", statsFactions, "RIGHT", 0, 0); hHit:EnableMouse(true)
+    components.statsNetwork = statsNetwork
 
     -- Maintenance Dropdown (Hidden anchor frame)
     local maintenanceDropDown = CreateFrame("Frame", "WhorkaroundMaintenanceDropDown", settings, "UIDropDownMenuTemplate")
@@ -697,6 +713,8 @@ function Whorkaround:InitGUI()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
+            if browserStatsAlliance then browserStatsAlliance:Hide() end
+            if browserStatsHorde then browserStatsHorde:Hide() end
         end
     end
     hooksecurefunc(WhoFrameEditBox, "Show", Lockdown)
