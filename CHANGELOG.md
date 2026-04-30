@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.19] - 2026-04-30
+
+### Fixed
+- Broadcast Loop: Resolved an issue where typing in the chat editbox with an @name link would trigger continuous network broadcasts and friend-list lookups. Added a 30-second throttle to editbox-triggered queries.
+- Traffic Reduction: Suppressed automatic network broadcasts for silent background cache hits (such as those triggered by the UI or tooltips) to further minimize network noise.
+
 ## [1.4.18] - 2026-04-30
 
 ### Changed

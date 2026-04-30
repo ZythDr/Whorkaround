@@ -866,9 +866,11 @@ function Whorkaround:Query(name, silent)
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
                 cached.faction, cached.lastSeen)
         end
-        -- Always broadcast fresh cache hits if we haven't recently
-        Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
-            false)
+        -- Only broadcast cache hits if it was a manual query (not silent)
+        if not silent then
+            Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
+                false)
+        end
         return
     end
 
@@ -896,14 +898,22 @@ end
 
 local function OnEditBoxTextChanged(self)
     local text = self:GetText()
-    if not text then return end
+    if not text or not text:find("@") then return end
+    local now = GetTime()
+    Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
+    
     local function TriggerQuery(name)
         local dbKey = name:lower()
+        -- Throttle: Only check each name once every 30s in the editbox
+        if Whorkaround.lastEditBoxCheck[dbKey] and (now - Whorkaround.lastEditBoxCheck[dbKey] < 30) then return end
+        Whorkaround.lastEditBoxCheck[dbKey] = now
+        
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
         if not data or (time() - (data.lastSeen or 0) > 3600) then Whorkaround:Query(dbKey, true) end
     end
     for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
     for name in text:gmatch("@([%a]+)%s") do TriggerQuery(name) end
+    for name in text:gmatch("@([%a]+)$") do TriggerQuery(name) end
 end
 
 local function HookChat()
