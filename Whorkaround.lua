@@ -233,7 +233,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     -- ONLY trigger a scan if it's a truly manual user search (Manual, FriendsList) or a fresh Cache/Guild hit from a user search
-    local isUserSearch = (source == "Manual" or source == "FriendsList")
+    local isUserSearch = (source == "Manual" or source == "FriendsList" or source == "SILENT")
     if (not level or level == 0) and isUserSearch then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
@@ -243,10 +243,12 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
             if not isFresh then
                 local statusMsg = isEnemy and "identified as " .. faction or "appears to be offline"
-                for _, frame in ipairs(GetOutputFrames()) do
-                    frame:AddMessage(
-                    string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor,
-                        displayName, statusMsg), 1, 1, 0)
+                if source ~= "SILENT" then
+                    for _, frame in ipairs(GetOutputFrames()) do
+                        frame:AddMessage(
+                        string.format("%s|Hplayer:%s|h[|r%s%s|r]|h %s. Scanning network...", prefix, name, classColor,
+                            displayName, statusMsg), 1, 1, 0)
+                    end
                 end
                 Whorkaround.networkWaiters[cleanName] = GetTime()
                 Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
@@ -517,8 +519,10 @@ local function SystemMessageFilter(self, event, msg)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
             local elapsed = GetTime() - (type(startTime) == "number" and startTime or GetTime())
             if (type(startTime) == "number" or startTime == "PROXY" or startTime == "SILENT") and (elapsed < 2 or startTime == "PROXY" or startTime == "SILENT") then
-                if startTime ~= "PROXY" and startTime ~= "SILENT" then Whorkaround:PrintWhoResult(name, nil, nil, nil,
-                        false, "Manual") end
+                if startTime ~= "PROXY" then 
+                    local pSource = (startTime == "SILENT") and "SILENT" or "Manual"
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, pSource) 
+                end
                 Whorkaround.pendingQueries[name] = nil
                 return true
             end
@@ -555,7 +559,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 
                 local data = Whorkaround_DB and Whorkaround_DB[dbKey]
                 if not data or (time() - (data.lastSeen or 0) > 300) then 
-                    Whorkaround:Query(dbKey, false) 
+                    Whorkaround:Query(dbKey, true) 
                 end
             end
             
@@ -567,10 +571,12 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     -- Collect expired pendingQueries to avoid mutating during pairs()
         wipe(expiredQueries)
         for name, startTime in pairs(Whorkaround.pendingQueries) do
-            if type(startTime) == "number" then
-                local diff = now - startTime
+            local queryTime = (type(startTime) == "number") and startTime or Whorkaround.addedSuppression[name]
+            if queryTime then
+                local diff = now - queryTime
                 if diff > 1.0 and Whorkaround.pendingQueries[name] ~= "TIMEOUT" and Whorkaround.pendingQueries[name] ~= "PROXY" then
-                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
+                    local pSource = (startTime == "SILENT") and "SILENT" or "Manual"
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, pSource)
                     Whorkaround.pendingQueries[name] = "TIMEOUT"
                     Whorkaround.removingFriends[name] = GetTime()
                     RemoveFriendByName(name)
