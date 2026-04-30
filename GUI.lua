@@ -160,14 +160,28 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (In-line with "People Found")
     local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", -15, 0)
+    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", -8, 0)
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
+    local browserStatsAllianceIcon = WhoFrame:CreateTexture(nil, "OVERLAY")
+    browserStatsAllianceIcon:SetSize(14, 14)
+    browserStatsAllianceIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Alliance-Up")
+    browserStatsAllianceIcon:SetPoint("RIGHT", browserStatsAlliance, "LEFT", -2, 0)
+    browserStatsAllianceIcon:Hide()
+    components.browserStatsAllianceIcon = browserStatsAllianceIcon
+
     local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 15, 0)
+    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", 8, 0)
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
+
+    local browserStatsHordeIcon = WhoFrame:CreateTexture(nil, "OVERLAY")
+    browserStatsHordeIcon:SetSize(14, 14)
+    browserStatsHordeIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Horde-Up")
+    browserStatsHordeIcon:SetPoint("LEFT", browserStatsHorde, "RIGHT", 2, 0)
+    browserStatsHordeIcon:Hide()
+    components.browserStatsHordeIcon = browserStatsHordeIcon
 
     -- Settings Panel
     settings = CreateFrame("Frame", "WhorkaroundSettingsPanel", WhoFrame)
@@ -246,8 +260,8 @@ function Whorkaround:InitGUI()
             if d.faction == "Alliance" then aCount = aCount + 1
             elseif d.faction == "Horde" then hCount = hCount + 1 end
         end
-        browserStatsAlliance:SetText("|cff0070ddA:|r " .. aCount)
-        browserStatsHorde:SetText("|cffff2020H:|r " .. hCount)
+        browserStatsAlliance:SetText("|cff0070dd" .. aCount .. "|r")
+        browserStatsHorde:SetText("|cffff2020" .. hCount .. "|r")
 
         local dCol = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
         
@@ -392,6 +406,7 @@ function Whorkaround:InitGUI()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
             browserStatsAlliance:Hide(); browserStatsHorde:Hide()
+            browserStatsAllianceIcon:Hide(); browserStatsHordeIcon:Hide()
         else
             settings:Hide()
             browserFactionColors:Hide()
@@ -425,6 +440,7 @@ function Whorkaround:InitGUI()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Show(); browserStatsHorde:Show()
+                browserStatsAllianceIcon:Show(); browserStatsHordeIcon:Show()
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
@@ -444,6 +460,7 @@ function Whorkaround:InitGUI()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
+                browserStatsAllianceIcon:Hide(); browserStatsHordeIcon:Hide()
                 WhoList_Update()
             end
         end
@@ -713,8 +730,10 @@ function Whorkaround:InitGUI()
             WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
             WhoFrameAddFriendButton:Hide(); WhoFrameGroupInviteButton:Hide()
             WhoFrameTotals:Hide()
-            if browserStatsAlliance then browserStatsAlliance:Hide() end
-            if browserStatsHorde then browserStatsHorde:Hide() end
+            if browserStatsAlliance then 
+                browserStatsAlliance:Hide(); browserStatsAllianceIcon:Hide()
+                browserStatsHorde:Hide(); browserStatsHordeIcon:Hide()
+            end
         end
     end
     hooksecurefunc(WhoFrameEditBox, "Show", Lockdown)
