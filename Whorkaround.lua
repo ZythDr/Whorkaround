@@ -231,12 +231,16 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         faction = (cachedData and cachedData.faction) or ((not level or level == 0) and enemyFaction or playerFaction)
     end
 
+    -- State detection: Is this request supposed to be silent?
+    -- We check the explicit source, or if we are resolving a waiter that was marked silent
     local isSilentSource = (source == "SILENT" or source == "PROXY" or source == "TIMEOUT_SILENT")
-    local isActualSilent = (Whorkaround.silentQueries and Whorkaround.silentQueries[cleanName] and (GetTime() - Whorkaround.silentQueries[cleanName] < 30)) or isSilentSource
+    local waiter = Whorkaround.networkWaiters[cleanName]
+    local isWaiterSilent = (type(waiter) == "table" and waiter.silent)
+    local isActualSilent = isSilentSource or isWaiterSilent
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     -- ONLY trigger a scan if it's a truly manual user search (Manual, FriendsList) or a fresh Cache/Guild hit from a user search
-    local isUserSearch = (source == "Manual" or source == "FriendsList")
+    local isUserSearch = (source == "Manual" or source == "FriendsList" or source == "SILENT")
     if (not level or level == 0) and isUserSearch then
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
@@ -253,7 +257,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                             displayName, statusMsg), 1, 1, 0)
                     end
                 end
-                Whorkaround.networkWaiters[cleanName] = GetTime()
+                Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = isActualSilent }
                 Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
                 Whorkaround:Request(name, targetFactionTag)
@@ -354,7 +358,10 @@ end
 -- Resolves a network wait by collecting hits over a 5s window
 function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, timestamp, isProxy)
     local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
-    if Whorkaround.networkWaiters[cleanName] then
+    local waiter = Whorkaround.networkWaiters[cleanName]
+    if waiter then
+        local startTime = (type(waiter) == "table") and waiter.startTime or waiter
+        local isSilent = (type(waiter) == "table") and waiter.silent or false
         local currentBest = Whorkaround.bestNetworkHits[cleanName]
         local newIsLive = (isProxy == "P" or isProxy == true)
 
@@ -383,7 +390,7 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
         if newIsLive then
             Whorkaround:Log("Live result received for " .. name .. "! Printing immediately.", "NETWORK")
             Whorkaround.networkWaiters[cleanName] = nil
-            Whorkaround:PrintWhoResult(name, level, class, zone, true, "WhorkComm", faction, timestamp)
+            Whorkaround:PrintWhoResult(name, level, class, zone, true, isSilent and "SILENT" or "WhorkComm", faction, timestamp)
             Whorkaround.bestNetworkHits[cleanName] = nil
         end
     end
@@ -525,11 +532,14 @@ local function SystemMessageFilter(self, event, msg)
     local chLeft = msg:match(leavePattern)
     if chLeft and (chLeft:find("WhorkComm") or chLeft:find("1. WhorkComm")) then return true end
     if msg == ERR_FRIEND_NOT_FOUND then
-        for name, startTime in pairs(Whorkaround.pendingQueries) do
-            local elapsed = GetTime() - (type(startTime) == "number" and startTime or GetTime())
-            if (type(startTime) == "number" or startTime == "PROXY" or startTime == "SILENT") and (elapsed < 2 or startTime == "PROXY" or startTime == "SILENT") then
-                if startTime ~= "PROXY" and startTime ~= "SILENT" then Whorkaround:PrintWhoResult(name, nil, nil, nil,
-                        false, "Manual") end
+        for name, qSource in pairs(Whorkaround.pendingQueries) do
+            local startTime = Whorkaround.addedSuppression[name] or (type(qSource) == "number" and qSource or GetTime())
+            local elapsed = GetTime() - startTime
+            if elapsed < 2 then
+                if qSource ~= "PROXY" and qSource ~= "SILENT" then 
+                    local finalSource = (type(qSource) == "string") and qSource or "Manual"
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource) 
+                end
                 Whorkaround.pendingQueries[name] = nil
                 return true
             end
@@ -566,8 +576,6 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 
                 local data = Whorkaround_DB and Whorkaround_DB[dbKey]
                 if not data or (time() - (data.lastSeen or 0) > 300) then 
-                    Whorkaround.silentQueries = Whorkaround.silentQueries or {}
-                    Whorkaround.silentQueries[dbKey] = now
                     Whorkaround:Query(dbKey, true) 
                 end
             end
@@ -579,18 +587,20 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
     -- Collect expired pendingQueries to avoid mutating during pairs()
         wipe(expiredQueries)
-        for name, startTime in pairs(Whorkaround.pendingQueries) do
-            if type(startTime) == "number" then
-                local diff = now - startTime
-                if diff > 1.0 and Whorkaround.pendingQueries[name] ~= "TIMEOUT" and Whorkaround.pendingQueries[name] ~= "PROXY" then
-                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
-                    Whorkaround.pendingQueries[name] = "TIMEOUT"
-                    Whorkaround.removingFriends[name] = GetTime()
-                    RemoveFriendByName(name)
-                end
-                if diff > 5 then
-                    table.insert(expiredQueries, name)
-                end
+        for name, qSource in pairs(Whorkaround.pendingQueries) do
+            local startTime = Whorkaround.addedSuppression[name] or (type(qSource) == "number" and qSource or now)
+            local diff = now - startTime
+            
+            if diff > 1.0 and qSource ~= "TIMEOUT" and qSource ~= "PROXY" then
+                local finalSource = (type(qSource) == "string") and qSource or "Manual"
+                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
+                Whorkaround.pendingQueries[name] = "TIMEOUT"
+                Whorkaround.removingFriends[name] = GetTime()
+                RemoveFriendByName(name)
+            end
+            
+            if diff > 5 then
+                table.insert(expiredQueries, name)
             end
         end
         for _, name in ipairs(expiredQueries) do
@@ -601,7 +611,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
         -- NETWORK SCAN TIMEOUT (safe: collect first, then remove)
         wipe(expiredWaiters)
-        for name, startTime in pairs(Whorkaround.networkWaiters) do
+        for name, data in pairs(Whorkaround.networkWaiters) do
+            local startTime = (type(data) == "table") and data.startTime or data
             if (now - startTime) > 6 then
                 table.insert(expiredWaiters, name)
             end
@@ -610,17 +621,20 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
                 Whorkaround:Log("Network scan timeout for " .. name, "NETWORK")
             end
+            local waiter = Whorkaround.networkWaiters[name]
+            local isSilent = (type(waiter) == "table") and waiter.silent or false
             Whorkaround.networkWaiters[name] = nil
+
             local best = Whorkaround.bestNetworkHits[name]
             if best then
-                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, "WhorkComm",
+                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, isSilent and "SILENT" or "WhorkComm",
                     best.faction, best.timestamp)
             else
-                local data = Whorkaround_DB and Whorkaround_DB[name]
-                if data then
-                    Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "TIMEOUT", data.faction, data.lastSeen)
+                local dbData = Whorkaround_DB and Whorkaround_DB[name]
+                if dbData then
+                    Whorkaround:PrintWhoResult(name, 0, dbData.class, dbData.zone or "Unknown", false, isSilent and "SILENT" or "TIMEOUT", dbData.faction, dbData.lastSeen)
                 else
-                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "FINAL_TIMEOUT")
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, isSilent and "SILENT" or "FINAL_TIMEOUT")
                 end
             end
             Whorkaround.bestNetworkHits[name] = nil
@@ -752,9 +766,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                             Whorkaround.pendingQueries[cleanName] = nil
                         else
+                            local qSource = Whorkaround.pendingQueries[cleanName]
+                            local finalSource = (type(qSource) == "string") and qSource or "Manual"
                             Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
                             Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "Manual")
+                            Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                         end
                     end
