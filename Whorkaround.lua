@@ -875,8 +875,12 @@ function Whorkaround:Query(name, silent)
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
         if fName and fName:lower() == name then
-            if not silent then Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, false,
-                    "FriendsList") end
+            if not silent then
+                Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, "FriendsList", nil, time())
+            end
+            if connected then
+                Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
+            end
             return
         end
     end
