@@ -357,7 +357,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     class = (class or ""):upper()
                     timestamp = timestamp or time()
                     local faction = (f == "A") and "Alliance" or (f == "H" and "Horde" or "Unknown")
-                    if level and level > 0 and level <= 60 and validClasses[class] and validFactions[faction] and zone and zone:len() < 50 then
+                    if level and level > 0 and level <= 60 and Whorkaround.validClasses[class] and (faction == "Alliance" or faction == "Horde") and zone and zone:len() < 50 then
                         if Whorkaround_DB then
                             if not Whorkaround_DB[cleanName] or timestamp > (Whorkaround_DB[cleanName].lastSeen or 0) then
                                 Whorkaround:Log("Incoming network data for " .. name .. " (" .. (isProxy == "P" and "Live" or "Cache") .. ")", "NETWORK")

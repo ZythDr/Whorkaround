@@ -621,12 +621,14 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
         -- SMART GHOST CLEANUP: Only runs 5s after the last addon action (query/proxy)
         if Whorkaround.lastActionTime and (now - Whorkaround.lastActionTime > 5) then
-            Whorkaround:Log("Running scheduled ghost friend cleanup...", "CLEANUP")
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Running scheduled ghost friend cleanup...", "CLEANUP")
+            end
             Whorkaround:CleanGhostFriends()
             Whorkaround.lastActionTime = nil
         end
     end
-end)
+)
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "UPDATE_MOUSEOVER_UNIT" then
