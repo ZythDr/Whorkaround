@@ -777,7 +777,7 @@ function Whorkaround:Query(name, silent)
 
     -- STABILITY: 30s Query Throttle
     local now = GetTime()
-    if Whorkaround.queryThrottle[name] and (now - Whorkaround.queryThrottle[name] < 30) then 
+    if Whorkaround.queryThrottle[name] and (now - Whorkaround.queryThrottle[name] < 2) then 
         Whorkaround:Log("Query throttled for " .. displayName, "LOCAL")
         return 
     end
