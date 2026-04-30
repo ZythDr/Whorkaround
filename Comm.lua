@@ -156,13 +156,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
             Whorkaround.networkPeers[sender:lower()] = GetTime()
             -- Handle Network Requests (WKR:F:Name)
             if msg:find("^" .. REQ_PREFIX) then
-                local targetFaction = msg:sub(#REQ_PREFIX + 1, #REQ_PREFIX + 1)
-                local targetName = msg:sub(#REQ_PREFIX + 3)
-                
-                -- Support older clients that don't send a faction tag
-                if not targetName or targetName == "" then
+                local targetFaction, targetName
+                -- Check if the 6th character is a colon, meaning it uses the new WKR:F:Name format
+                if msg:sub(#REQ_PREFIX + 2, #REQ_PREFIX + 2) == ":" then
+                    targetFaction = msg:sub(#REQ_PREFIX + 1, #REQ_PREFIX + 1)
+                    targetName = msg:sub(#REQ_PREFIX + 3)
+                else
+                    -- Older clients that just send WKR:Name
+                    targetFaction = "U"
                     targetName = msg:sub(#REQ_PREFIX + 1)
-                    targetFaction = "U" -- Unknown/Any
                 end
 
                 if not targetName or targetName == "" then return end
