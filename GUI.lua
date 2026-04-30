@@ -154,7 +154,8 @@ function Whorkaround:InitGUI()
     end
 
     local tab1, tab2, settings, browserFactionColors
-    local browserStatsAlliance, browserStatsHorde, browserStatsAllianceHit, browserStatsHordeHit
+    local browserStatsAlliance, browserStatsHorde, browserStatsSeparator
+    local browserStatsAllianceHit, browserStatsHordeHit
     local statsTotal, statsNetwork
 
     -- Browser-specific Faction Colors toggle (Repositioned to right side)
@@ -168,14 +169,21 @@ function Whorkaround:InitGUI()
     components.browserFactionColors = browserFactionColors
 
     -- Browser Faction Counters (Conditional Positioning)
+    browserStatsSeparator = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    browserStatsSeparator:SetPoint("TOP", WhoFrame, "TOP", 0, -55)
+    browserStatsSeparator:SetText("|")
+    browserStatsSeparator:SetTextColor(0.5, 0.5, 0.5)
+    browserStatsSeparator:Hide()
+    components.browserStatsSeparator = browserStatsSeparator
+
     browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("TOP", WhoFrame, "TOP", -50, -55)
+    browserStatsAlliance:SetPoint("RIGHT", browserStatsSeparator, "LEFT", -5, 0)
     browserStatsAlliance:SetJustifyH("RIGHT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("TOP", WhoFrame, "TOP", 50, -55)
+    browserStatsHorde:SetPoint("LEFT", browserStatsSeparator, "RIGHT", 5, 0)
     browserStatsHorde:SetJustifyH("LEFT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
@@ -492,6 +500,13 @@ function Whorkaround:InitGUI()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Show(); browserStatsHorde:Show()
                 browserStatsAllianceHit:Show(); browserStatsHordeHit:Show()
+                -- Only show separator if NOT ElvUI or if ElvUI skinning is disabled
+                local E = IsAddOnLoaded("ElvUI") and _G.ElvUI and _G.ElvUI[1]
+                if not E or (E.private and E.private.skins and E.private.skins.blizzard and (not E.private.skins.blizzard.enable or not E.private.skins.blizzard.friends)) then
+                    browserStatsSeparator:Show()
+                else
+                    browserStatsSeparator:Hide()
+                end
                 UpdateSortArrows(); Whorkaround_WhoList_Update()
             else
                 if nativeScrollScript then WhoListScrollFrame:SetScript("OnVerticalScroll", nativeScrollScript) end
@@ -513,6 +528,7 @@ function Whorkaround:InitGUI()
                 WhoFrameTotals:Show()
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
+                browserStatsSeparator:Hide()
                 WhoList_Update()
             end
         end
@@ -792,6 +808,7 @@ function Whorkaround:InitGUI()
             if browserStatsAlliance then
                 browserStatsAlliance:Hide(); browserStatsAllianceHit:Hide()
                 browserStatsHorde:Hide(); browserStatsHordeHit:Hide()
+                browserStatsSeparator:Hide()
             end
         end
     end
