@@ -2,6 +2,7 @@ local Whorkaround = select(2, ...)
 
 -- Skin internal components (Defined at root so it captures InitGUI calls)
 function Whorkaround:SkinGUIComponents(components)
+    if not ElvUI then return end
     local E, L, V, P, G = unpack(ElvUI)
     local S = E:GetModule("Skins")
 
@@ -39,6 +40,7 @@ function Whorkaround:SkinGUIComponents(components)
 end
 
 function Whorkaround:ApplyElvUISkin()
+    if not ElvUI then return end
     local E, L, V, P, G = unpack(ElvUI)
     local S = E:GetModule("Skins")
 
