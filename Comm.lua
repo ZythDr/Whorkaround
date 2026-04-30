@@ -271,6 +271,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     return
                 end
 
+                -- PROXY TRACKING: If they send a proxy response, they are a proxy peer
+                if isProxy == "P" then
+                    local senderLower = sender:lower()
+                    if not Whorkaround.proxyPeers[senderLower] then
+                        Whorkaround:Log("Peer " .. sender .. " identified as Proxy via network activity.", "NETWORK")
+                    end
+                    Whorkaround.proxyPeers[senderLower] = GetTime()
+                end
+
                 if remoteVer and not notifiedUpdate and IsNewerVersion(remoteVer, currentVersion) then
                     local prefix = "|cff1abc9cWhorkaround Update:|r "
                     DEFAULT_CHAT_FRAME:AddMessage(prefix .. "A newer version (|cffffd100v" .. remoteVer .. "|r) is available!")

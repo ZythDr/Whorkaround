@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.15] - 2026-04-30
+
+### Changed
+- Proxy Tracking: Enhanced proxy peer detection. Anyone replying with a proxy-tagged response (:P) is now automatically counted as a proxy peer, leading to more accurate network statistics.
+
 ## [1.4.14] - 2026-04-30
 
 ### Changed
