@@ -614,7 +614,7 @@ function Whorkaround:InitGUI()
 
     local debugCheck = CreateCheckBox(settings, "Enable Debug", "debug",
         "Prints detailed background actions to chat (Network, Proxy, Cleanup).")
-    debugCheck:SetPoint("TOPLEFT", 182, -100)
+    debugCheck:SetPoint("TOPLEFT", 27, -220)
     debugCheck:HookScript("OnClick", function(self)
         Whorkaround.DebugMode = (self:GetChecked() == 1)
     end)
