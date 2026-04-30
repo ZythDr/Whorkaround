@@ -555,7 +555,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 
                 local data = Whorkaround_DB and Whorkaround_DB[dbKey]
                 if not data or (time() - (data.lastSeen or 0) > 300) then 
-                    Whorkaround:Query(dbKey, true) 
+                    Whorkaround:Query(dbKey, false) 
                 end
             end
             
