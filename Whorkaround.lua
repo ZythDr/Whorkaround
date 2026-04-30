@@ -938,8 +938,13 @@ local function OnEditBoxTextChanged(self)
     local function TriggerQuery(name)
         local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+        if Whorkaround.DebugMode then
+            Whorkaround:Log("Editbox regex matched name: " .. name, "LOCAL")
+        end
         if not data or (time() - (data.lastSeen or 0) > 300) then 
             Whorkaround:Query(dbKey, true) 
+        elseif Whorkaround.DebugMode then
+            Whorkaround:Log("Skipping editbox query for " .. name .. " (Data is fresh)", "LOCAL")
         end
     end
     
