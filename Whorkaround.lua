@@ -739,39 +739,42 @@ frame:SetScript("OnEvent", function(self, event, ...)
                         Whorkaround:Log("Tagging friend: " .. name, "LOCAL")
                         SetFriendNotes(i, NOTE_ID)
                     end
-                    if Whorkaround.pendingQueries[cleanName] == "PROXY" then
-                        if connected then
-                            local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or
-                            "Unknown"
-                            Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
-
-                            -- DE-DUPLICATION: Cancel any pending cached response schedule
-                            if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
-
-                            Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
-                            -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                            Whorkaround.pendingQueries[cleanName] = nil
-                        else
-                            Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i); Whorkaround.pendingQueries[cleanName] = nil
-                        end
-                    elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
-                        if connected then
-                            local qSource = Whorkaround.pendingQueries[cleanName]
-                            local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
-                            Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
-                            Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                            Whorkaround.pendingQueries[cleanName] = nil
-                        else
-                            local qSource = Whorkaround.pendingQueries[cleanName]
-                            local finalSource = (type(qSource) == "string") and qSource or "Manual"
-                            Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
-                            Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
-                            Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                    
+                    if Whorkaround.pendingQueries[cleanName] then
+                        if Whorkaround.pendingQueries[cleanName] == "PROXY" then
+                            if connected then
+                                local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or
+                                "Unknown"
+                                Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
+    
+                                -- DE-DUPLICATION: Cancel any pending cached response schedule
+                                if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
+    
+                                Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
+                                -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
+                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                Whorkaround.pendingQueries[cleanName] = nil
+                            else
+                                Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
+                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i); Whorkaround.pendingQueries[cleanName] = nil
+                            end
+                        elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
+                            if connected then
+                                local qSource = Whorkaround.pendingQueries[cleanName]
+                                local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
+                                Whorkaround:Log("Manual query success: " .. name, "LOCAL")
+                                Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
+                                Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
+                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                Whorkaround.pendingQueries[cleanName] = nil
+                            else
+                                local qSource = Whorkaround.pendingQueries[cleanName]
+                                local finalSource = (type(qSource) == "string") and qSource or "Manual"
+                                Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
+                                Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
+                                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
+                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                            end
                         end
                     end
                 end
