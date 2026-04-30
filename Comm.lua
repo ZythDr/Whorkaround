@@ -400,7 +400,7 @@ function Whorkaround:Request(name, factionTag)
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
         -- Don't request the same name more than once every 30 seconds globally
         Whorkaround.recentRequests = Whorkaround.recentRequests or {}
-        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 5) then 
+        if Whorkaround.recentRequests[cleanName] and (GetTime() - Whorkaround.recentRequests[cleanName] < 10) then 
             return 
         end
         Whorkaround.recentRequests[cleanName] = GetTime()
