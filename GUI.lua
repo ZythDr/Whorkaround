@@ -160,13 +160,13 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
     local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -5, 0)
+    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -10, 0)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 5, 0)
+    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 10, 0)
     browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
@@ -174,6 +174,7 @@ function Whorkaround:InitGUI()
     -- Tooltip Hitboxes
     local aHit = CreateFrame("Frame", nil, WhoFrame)
     aHit:SetSize(40, 20); aHit:SetPoint("CENTER", browserStatsAlliance); aHit:EnableMouse(true); aHit:Hide()
+    aHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
     aHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Alliance Players", 0, 0.44, 0.87)
@@ -184,6 +185,7 @@ function Whorkaround:InitGUI()
 
     local hHit = CreateFrame("Frame", nil, WhoFrame)
     hHit:SetSize(40, 20); hHit:SetPoint("CENTER", browserStatsHorde); hHit:EnableMouse(true); hHit:Hide()
+    hHit:SetFrameLevel(WhoFrame:GetFrameLevel() + 10)
     hHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Horde Players", 1, 0.13, 0.13)
