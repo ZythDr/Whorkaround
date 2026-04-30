@@ -158,15 +158,15 @@ function Whorkaround:InitGUI()
     browserFactionColors:Hide() 
     components.browserFactionColors = browserFactionColors
 
-    -- Browser Faction Counters (In-line with "People Found" - Overlapping for compactness)
+    -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
     local browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("RIGHT", WhoFrameTotals, "LEFT", 10, 0)
+    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", 10, 0)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     local browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("LEFT", WhoFrameTotals, "RIGHT", -10, 0)
+    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", -10, 0)
     browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
