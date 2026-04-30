@@ -169,13 +169,13 @@ function Whorkaround:InitGUI()
 
     -- Browser Faction Counters (In-line with "People Found" - Growing INWARD for stability)
     browserStatsAlliance = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", -13, 0)
+    browserStatsAlliance:SetPoint("LEFT", WhoFrameTotals, "LEFT", 15, 0)
     browserStatsAlliance:SetJustifyH("LEFT")
     browserStatsAlliance:Hide()
     components.browserStatsAlliance = browserStatsAlliance
 
     browserStatsHorde = WhoFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", 10, 0)
+    browserStatsHorde:SetPoint("RIGHT", WhoFrameTotals, "RIGHT", -15, 0)
     browserStatsHorde:SetJustifyH("RIGHT")
     browserStatsHorde:Hide()
     components.browserStatsHorde = browserStatsHorde
@@ -485,14 +485,8 @@ function Whorkaround:InitGUI()
 
                 WhoListScrollFrame:Show();
                 WhoListScrollFrameScrollBar:Show();
-                -- Standard Blizzard anchors for the frame, but we pull up the scrollbar buttons manually
+                -- Standard Blizzard anchors for the frame
                 WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
-                if not IsAddOnLoaded("ElvUI") then
-                    WhoListScrollFrameScrollBar:ClearAllPoints()
-                    WhoListScrollFrameScrollBar:SetPoint("TOPLEFT", WhoListScrollFrame, "TOPRIGHT", 0, -16)
-                    -- Pull up the bottom of the scrollbar by 55px to clear the faction stats
-                    WhoListScrollFrameScrollBar:SetPoint("BOTTOMLEFT", WhoListScrollFrame, "BOTTOMRIGHT", 0, 55)
-                end
                 WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
@@ -518,10 +512,6 @@ function Whorkaround:InitGUI()
                 WhoFrameAddFriendButton:Show(); WhoFrameGroupInviteButton:Show()
                 WhoFrameTotals:Show()
                 WhoListScrollFrame:SetPoint("BOTTOMRIGHT", WhoFrame, "BOTTOMRIGHT", -39, 77)
-                -- Restore native scrollbar points
-                WhoListScrollFrameScrollBar:ClearAllPoints()
-                WhoListScrollFrameScrollBar:SetPoint("TOPLEFT", WhoListScrollFrame, "TOPRIGHT", 0, -16)
-                WhoListScrollFrameScrollBar:SetPoint("BOTTOMLEFT", WhoListScrollFrame, "BOTTOMRIGHT", 0, 16)
                 browserStatsAlliance:Hide(); browserStatsHorde:Hide()
                 browserStatsAllianceHit:Hide(); browserStatsHordeHit:Hide()
                 WhoList_Update()
