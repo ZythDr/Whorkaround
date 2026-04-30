@@ -349,6 +349,13 @@ function Whorkaround:InitGUI()
                 levelText:SetText((d.level or 0) > 0 and d.level or "??")
                 classText:SetText(displayClass)
 
+                if Whorkaround_Settings and Whorkaround_Settings.factionColors then
+                    local c = RAID_CLASS_COLORS[classKey] or { r = 1, g = 1, b = 1 }
+                    classText:SetTextColor(c.r, c.g, c.b)
+                else
+                    classText:SetTextColor(1, 1, 1)
+                end
+
                 -- Support for ElvUI Class Icons
                 if button.icon then
                     if classKey ~= "" and _G.CLASS_ICON_TCOORDS[classKey] then
