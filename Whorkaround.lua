@@ -212,7 +212,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     end
     local timestamp = timestamp or time()
     local isDataRecent = (not timestamp or timestamp == 0) or (time() - timestamp < 10)
-    isLive = isLive or isDataRecent
+    if isLive == nil then isLive = isDataRecent end
     local playerFaction = UnitFactionGroup("player") or "Unknown"
     local enemyFaction = (playerFaction == "Horde") and "Alliance" or
     (playerFaction == "Alliance" and "Horde" or "Unknown")
@@ -271,7 +271,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
 
         if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
-            local line2 = string.format("%sData %s was successfully fetched from network.", prefix, statusLabel)
+            local actionMsg = (source == "WhorkComm") and "fetched from network" or "recovered from cache (Network timeout)"
+            local line2 = string.format("%sData %s was successfully %s.", prefix, statusLabel, actionMsg)
             for _, frame in ipairs(GetOutputFrames()) do
                 frame:AddMessage(line1, 1, 1, 0)
                 frame:AddMessage(line2, 1, 1, 0)
