@@ -212,13 +212,13 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     if displayClass:lower() ~= "unknown" then
         displayClass = displayClass:lower():gsub("(%a)([%w_']*)", function(first, rest) return first:upper() .. rest end)
     end
+    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timestamp = (timestamp and timestamp ~= 0) and timestamp or (cachedData and cachedData.lastSeen)
     local isDataRecent = timestamp and (time() - timestamp < 10)
     if isLive == nil then isLive = isDataRecent or false end
     local playerFaction = UnitFactionGroup("player") or "Unknown"
     local enemyFaction = (playerFaction == "Horde") and "Alliance" or
     (playerFaction == "Alliance" and "Horde" or "Unknown")
-    local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
     local timeText = isLive and "" or string.format(" |cff888888(%s)|r", GetRelativeTime(timestamp))
 
     -- DEDUPLICATION: Prevent double-prints within 100ms
@@ -574,7 +574,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             else
                 local data = Whorkaround_DB and Whorkaround_DB[name]
                 if data then
-                    Whorkaround:PrintWhoResult(name, 0, data.class, "Unknown", false, "TIMEOUT", data.faction)
+                    Whorkaround:PrintWhoResult(name, 0, data.class, data.zone or "Unknown", false, "TIMEOUT", data.faction, data.lastSeen)
                 else
                     Whorkaround:PrintWhoResult(name, nil, nil, nil, false, "FINAL_TIMEOUT")
                 end
