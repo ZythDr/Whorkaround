@@ -165,7 +165,7 @@ function Whorkaround:InitGUI()
     -- Browser-specific Faction Colors toggle (Repositioned to right side)
     browserFactionColors = CreateCheckBox(WhoFrame, "Faction Colors", "factionColors",
         "Colors names by faction in the browser.")
-    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -60, -32)
+    browserFactionColors:SetPoint("TOPRIGHT", WhoFrame, "TOPRIGHT", -35, -32)
     browserFactionColors.text:ClearAllPoints()
     browserFactionColors.text:SetPoint("RIGHT", browserFactionColors, "LEFT", -2, 0)
     browserFactionColors:SetFrameLevel(WhoFrame:GetFrameLevel() + 5)
