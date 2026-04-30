@@ -2,7 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.11] - 2026-04-28
+## [1.4.13] - 2026-04-30
+
+### Added
+- Browser Refinement: Added class-coloring to the 'Class' column in the database browser when 'Faction Colors' is enabled, providing a richer, data-dense view.
+
+### Changed
+- UI Ergonomics: Implemented a centered 'stat pill' design for faction counters in the Blizzard skin, featuring a vertical separator and outward-growth anchoring.
+- ElvUI Mirroring: Relocated the 'Faction Colors' toggle to a mirrored top-left position when ElvUI is active to better suit its header layout.
+- Professional Formatting: Standardized all class names to Title Case (e.g., 'Shaman' instead of 'SHAMAN') across the UI, database, and network protocols.
+- Options Layout: Tightened the settings panel columns for a more centered and balanced appearance.
+
+### Fixed
+- Cross-Faction Requests: Resolved a critical bug where failed /who queries would cause requests to be incorrectly tagged with the sender's faction, preventing enemy data from being fetched from appropriate proxies.
+- Data Integrity: Implemented a strict zero-tolerance policy for incomplete data. The addon now blocks any broadcasts or incoming messages containing 'Unknown' placeholders or invalid levels.
+- Proxy Privacy: Background proxy lookups are now completely silent for the performer, ensuring the network engine works invisibly without printing result spam to the proxy user's chat.
+- UI Stability: Fixed potential nil-value errors in faction detection during login and UI reload transitions.
+
+## [1.4.12] - 2026-04-29
 
 ### Fixed
 - Critical Lua Error: Fixed a crash in the results printer caused by an incorrect function call during friend removal checks.
