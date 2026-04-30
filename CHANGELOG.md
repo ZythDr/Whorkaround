@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.23] - 2026-04-30
+
+### Fixed
+- Chat Leaks: Resolved an issue where automated background lookups (triggered by names in brackets or @ mentions) would occasionally print results to the user's chat.
+- Proxy Stability: Improved silent mode handling to ensure proxy requests remain strictly invisible to the proxying user.
+
 ## [1.4.22] - 2026-04-30
 
 ### Fixed

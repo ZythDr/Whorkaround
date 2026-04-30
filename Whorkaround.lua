@@ -231,7 +231,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         faction = (cachedData and cachedData.faction) or ((not level or level == 0) and enemyFaction or playerFaction)
     end
 
-    local isActualSilent = Whorkaround.silentQueries and Whorkaround.silentQueries[cleanName] and (GetTime() - Whorkaround.silentQueries[cleanName] < 30)
+    local isSilentSource = (source == "SILENT" or source == "PROXY" or source == "TIMEOUT_SILENT")
+    local isActualSilent = (Whorkaround.silentQueries and Whorkaround.silentQueries[cleanName] and (GetTime() - Whorkaround.silentQueries[cleanName] < 30)) or isSilentSource
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
     -- ONLY trigger a scan if it's a truly manual user search (Manual, FriendsList) or a fresh Cache/Guild hit from a user search
@@ -561,13 +562,13 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         if text then
             Whorkaround.lastEditBoxCheck = Whorkaround.lastEditBoxCheck or {}
             local function TriggerQuery(name)
-                local dbKey = name:lower()
+                local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
                 
                 local data = Whorkaround_DB and Whorkaround_DB[dbKey]
                 if not data or (time() - (data.lastSeen or 0) > 300) then 
                     Whorkaround.silentQueries = Whorkaround.silentQueries or {}
                     Whorkaround.silentQueries[dbKey] = now
-                    Whorkaround:Query(dbKey, false) 
+                    Whorkaround:Query(dbKey, true) 
                 end
             end
             
