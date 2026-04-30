@@ -359,6 +359,7 @@ function Whorkaround:InitGUI()
             end
         end
     end
+end
 
 
 
