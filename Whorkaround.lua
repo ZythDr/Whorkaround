@@ -712,7 +712,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             local qSource = Whorkaround.pendingQueries[cleanName]
                             local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
                             Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource)
+                            Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
                             Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
                             Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
                             Whorkaround.pendingQueries[cleanName] = nil
@@ -825,7 +825,7 @@ function Whorkaround:Query(name, silent)
             local faction = UnitFactionGroup(unit)
             if not silent then
                 Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, "Manual", faction, time())
-                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), true)
+                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
             end
             return
         end
@@ -848,7 +848,7 @@ function Whorkaround:Query(name, silent)
             Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, "GuildRoster", nil, time())
         end
         if not isOffline then
-            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), true)
+            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
         end
         return
     end
@@ -879,7 +879,7 @@ function Whorkaround:Query(name, silent)
                 Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, "FriendsList", nil, time())
             end
             if connected then
-                Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true)
+                Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), false)
             end
             return
         end
