@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.14] - 2026-04-30
+
+### Changed
+- Query Responsiveness: Reduced manual query and shift-click cooldowns to 2 seconds for a snappier feel.
+- Network Coverage: Enabled proactive broadcasting for all player detection paths, including target matches, guild roster hits, and chat hovers. Every interaction now helps populate the network database.
+- Global Request Timing: Reduced global network request cooldown to 10 seconds.
+
+### Fixed
+- Network Timeout Visibility: Added an explicit 'No data found' message when network scans time out without results, resolving silent failures.
+- Broadcast Integrity: Fixed a bug where manual same-faction lookups were printing locally but failing to share data with the network.
+
 ## [1.4.13] - 2026-04-30
 
 ### Added
