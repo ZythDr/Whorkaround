@@ -207,7 +207,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     Whorkaround.lastPrint[cleanName] = now
 
     if not faction then
-        faction = (level == 0) and enemyFaction or playerFaction
+        faction = (not level or level == 0) and enemyFaction or playerFaction
     end
 
     -- OFFLINE OR ENEMY DETECTION (Trigger network search)
