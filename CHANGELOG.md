@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.24] - 2026-05-01
+
+### Core Engine & Performance
+- **No more "phantom" chat prints:** Rewrote the background lookup logic to properly track state and block random events from leaking into your chat window.
+- **Instant typing detection:** Removed the 0.3s delay when typing names in chat. It now detects mentions instantly while using a trailing space to keep network usage low.
+
+### Chat & Visuals
+- **Better @mentions & colored typing:** `@Names` now stay as `@Names` instead of turning into brackets. They also now show up in class color directly in the chat box while you're typing or shift-clicking.
+- **Safe link stripping:** Added a filter that automatically cleans up our hidden link data before you send a message, so the server doesn't strip or block your text.
+
+### Bug Fixes
+- **Color & Timeout fixes:** Fixed a bug where players could show up as the wrong class color on some realms and added a 5-second "emergency" timeout so failed scans don't hang.
+- **Debug toggle fix:** Made sure debug logs actually listen to the toggle in the GUI settings.
+
 ## [1.4.23] - 2026-04-30
 
 ### Fixed
