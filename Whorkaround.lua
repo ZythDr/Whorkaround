@@ -964,9 +964,50 @@ local function OnEditBoxTextChanged(self)
     local startName = text:match("^@([%a]+)%s")
     if startName then TriggerQuery(startName) end
     for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
+    local function TryAutoColor(name, spacePrefix, spaceSuffix, isAtStart)
+        local dbKey = name:lower()
+        local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+        if data and data.class then
+            local color = GetClassColorCode(data.class, name)
+            local displayName = name:gsub("^%l", string.upper)
+            return (spacePrefix or "") .. color .. "|Hplayer:" .. name .. "|h@" .. displayName .. "|h|r" .. (spaceSuffix or "")
+        end
+        return nil
+    end
+
+    local newText, count = text:gsub("(%s)@([%a]+)(%s)$", function(s1, n, s2)
+        local colored = TryAutoColor(n, s1, s2, false)
+        return colored or (s1 .. "@" .. n .. s2)
+    end)
+    
+    if count == 0 then
+        newText, count = text:gsub("^@([%a]+)(%s)$", function(n, s2)
+            local colored = TryAutoColor(n, nil, s2, true)
+            return colored or ("@" .. n .. s2)
+        end)
+    end
+
+    if count > 0 and newText ~= text then
+        self:SetText(newText)
+    end
 end
 
 local function HookChat()
+    if not Whorkaround.ChatEdit_SendText_Hooked then
+        local orig_SendText = ChatEdit_SendText
+        ChatEdit_SendText = function(editBox, addHistory)
+            local text = editBox:GetText()
+            if text then
+                local cleanText = text:gsub("|cff%x%x%x%x%x%x|Hplayer:[^|]+|h(.-)|h|r", "%1")
+                if cleanText ~= text then
+                    editBox:SetText(cleanText)
+                end
+            end
+            return orig_SendText(editBox, addHistory)
+        end
+        Whorkaround.ChatEdit_SendText_Hooked = true
+    end
+
     local orig = ChatFrame_OnHyperlinkShow
     ChatFrame_OnHyperlinkShow = function(...)
         local link, text, button; local arg1 = ...
@@ -977,7 +1018,10 @@ local function HookChat()
                 if IsShiftKeyDown() then
                     local eb = ChatEdit_GetActiveWindow()
                     if eb then 
-                        eb:Insert("[" .. name:gsub("^%l", string.upper) .. "]")
+                        local dbKey = name:lower()
+                        local data = Whorkaround_DB and Whorkaround_DB[dbKey]
+                        local color = GetClassColorCode(data and data.class, name)
+                        eb:Insert(color .. "|Hplayer:" .. name .. "|h[" .. name:gsub("^%l", string.upper) .. "]|h|r")
                         return 
                     end
                     Whorkaround:Query(name)
