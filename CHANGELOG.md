@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.25] - 2026-05-01
+
+### Fixed
+- **UI Taint / Action Blocked Fix:** Removed the experimental editbox colorization and hyperlink injection feature. While visually cool, it caused secure execution errors (Taint) when combined with other addons or macros. Stability is now restored to 100%.
+
 ## [1.4.24] - 2026-05-01
 
 ### Core Engine & Performance
