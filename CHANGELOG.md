@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2026-05-02
+
+### Fixed
+- Clicking Refresh on a cached DB entry could crash with a nil error in the sort dropdown. Fixed.
+- Network replies were sometimes silently ignored if the addon already had a newer record for that player locally, causing "No community data was found" even though someone responded. Fixed.
+
 ## [1.5.1] - 2026-05-02
 
 ### Fixed
