@@ -1068,9 +1068,19 @@ function Whorkaround:InitGUI()
         end
     end)
 
-    -- No-op: superseded by Whorkaround_DropDown_Initialize which has all options.
-    -- Kept as hooksecurefunc cannot be un-registered.
-    hooksecurefunc("WhoFrameDropDown_Initialize", function() end)
+    -- Replace WhoFrameDropDown_Initialize entirely. hooksecurefunc only fires AFTER the
+    -- original, which crashes in Epoch because GetWhoInfo() returns nil (no /who results).
+    -- Direct replacement ensures the native function never runs in browser mode.
+    do
+        local _orig = WhoFrameDropDown_Initialize
+        WhoFrameDropDown_Initialize = function(level)
+            if tab1 and tab1:GetChecked() then
+                Whorkaround_DropDown_Initialize(level)
+            elseif _orig then
+                _orig(level)
+            end
+        end
+    end
 
     tab1 = CreateFrame("CheckButton", "WhorkaroundSideTab1", FriendsFrame)
     tab1:SetSize(32, 32); tab1:SetPoint("TOPLEFT", FriendsFrame, "TOPRIGHT", -32, -42)
