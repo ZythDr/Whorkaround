@@ -51,38 +51,35 @@ local function CreateButton(parent, label, width, height)
     return btn
 end
 
-local function CreateEditBox(parent, label, setting, tooltip)
-    local container = CreateFrame("Frame", nil, parent)
-    container:SetSize(160, 45)
-
-    local text = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    text:SetPoint("TOPLEFT", 0, 0); text:SetText(label)
-
-    local eb = CreateFrame("EditBox", nil, container, "InputBoxTemplate")
-    eb:SetSize(140, 20); eb:SetPoint("TOPLEFT", 0, -12); eb:SetAutoFocus(false)
+local function CreateEditBox(parent, label, setting, tooltip, name)
+    -- Fixed: Give it a name so ElvUI can find and hide the "Left/Middle/Right" textures
+    local eb = CreateFrame("EditBox", name, parent, "InputBoxTemplate")
+    eb:SetSize(140, 20); eb:SetAutoFocus(false)
+    eb:SetFontObject("GameFontHighlightSmall")
+    eb:SetTextInsets(8, 8, 0, 0)
+    
+    local text = eb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    text:SetPoint("BOTTOMLEFT", eb, "TOPLEFT", 0, 2); text:SetText(label)
+    eb.label = text
 
     eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "") end)
+    eb:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     eb:SetScript("OnEnterPressed", function(self)
         Whorkaround_Settings[setting] = self:GetText()
         self:ClearFocus()
-        print("|cff1abc9cWhorkaround:|r " ..
-            label ..
-            " set to: |cffffd100" ..
-            (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
+        print("|cff1abc9cWhorkaround:|r " .. label .. " set to: |cffffd100" .. (Whorkaround_Settings[setting] ~= "" and Whorkaround_Settings[setting] or "Default") .. "|r")
     end)
     eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
     if tooltip then
         eb:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText(label, 1, 1, 1)
-            GameTooltip:AddLine(tooltip, nil, nil, nil, true)
-            GameTooltip:Show()
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(label, 1, 1, 1)
+            GameTooltip:AddLine(tooltip, nil, nil, nil, true); GameTooltip:Show()
         end)
         eb:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
 
-    return container
+    return eb
 end
 
 local sliderCount = 0
@@ -136,6 +133,7 @@ function Whorkaround:InitGUI()
         local eb = CreateFrame("EditBox", "WhorkaroundFreqEditBox", container, "InputBoxTemplate")
         eb:SetSize(30, 20); eb:SetPoint("LEFT", text, "RIGHT", 10, 0); eb:SetAutoFocus(false); eb:SetJustifyH("CENTER")
         eb:SetScript("OnShow", function(self) self:SetText(Whorkaround_Settings[setting] or "1.0") end)
+        eb:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
         eb:SetScript("OnEnterPressed", function(self)
             local val = tonumber(self:GetText())
             if val and val >= 0.1 then
@@ -249,6 +247,13 @@ function Whorkaround:InitGUI()
         end
     end
 
+    -- Formats a level value (number, "?", or nil/0) for display.
+    local function DisplayLevel(lvl)
+        if type(lvl) == "number" and lvl > 0 then return tostring(lvl) end
+        if lvl == "?" then return "?" end
+        return "??"
+    end
+
     -- Browser Memory Optimization: Recyclable table pool
     local browserData = {}
     local browserPool = {}
@@ -267,16 +272,77 @@ function Whorkaround:InitGUI()
     local function Whorkaround_WhoList_Update()
         if not tab1 or not tab1:GetChecked() then return end
 
-        local query = (WhoFrameEditBox:GetText() or ""):lower()
+        local rawQuery = WhoFrameEditBox:GetText() or ""
+        local query = rawQuery:lower()
+        
+        -- Parse search mode and field prefix
+        local isExactMatch = false
+        local fieldPrefix = nil
+        local searchTerm = query
+        
+        -- Detect exact match: "query"
+        if query:match('^"(.*)"$') then
+            isExactMatch = true
+            searchTerm = query:match('^"(.*)"$')
+        -- Detect field prefix: g:value, r:value, z:value, c:value, n:value
+        elseif query:match("^([gnrcz]):(.+)$") then
+            fieldPrefix, searchTerm = query:match("^([gnrcz]):(.+)$")
+        end
+        
+        -- Level range matching (e.g., "10-20")
+        local minL, maxL = query:match("(%d+)%-(%d+)")
+        if minL and maxL then minL, maxL = tonumber(minL), tonumber(maxL) end
+
         ReleasePoolTables()
         if Whorkaround_DB then
             for name, entry in pairs(Whorkaround_DB) do
-                if query == "" or name:lower():find(query) or (entry.class and entry.class:lower():find(query)) or (entry.zone and entry.zone:lower():find(query)) then
+                local level = entry.level or 0
+                local levelStr = tostring(level)
+                local match = false
+                
+                -- Level range search
+                if minL and maxL then
+                    if level >= minL and level <= maxL then match = true end
+                -- Empty query matches all
+                elseif query == "" then
+                    match = true
+                -- Field-prefixed search
+                elseif fieldPrefix then
+                    if fieldPrefix == "g" then
+                        match = (entry.guild and (isExactMatch and entry.guild:lower() == searchTerm or entry.guild:lower():find(searchTerm)))
+                    elseif fieldPrefix == "r" then
+                        match = (entry.race and (isExactMatch and entry.race:lower() == searchTerm or entry.race:lower():find(searchTerm)))
+                    elseif fieldPrefix == "z" then
+                        match = (entry.zone and (isExactMatch and entry.zone:lower() == searchTerm or entry.zone:lower():find(searchTerm)))
+                    elseif fieldPrefix == "c" then
+                        match = (entry.class and (isExactMatch and entry.class:lower() == searchTerm or entry.class:lower():find(searchTerm)))
+                    elseif fieldPrefix == "n" then
+                        match = (isExactMatch and name:lower() == searchTerm or name:lower():find(searchTerm))
+                    end
+                -- Exact match mode: check all fields for exact matches
+                elseif isExactMatch then
+                    match = (name:lower() == searchTerm or
+                             (entry.class and entry.class:lower() == searchTerm) or
+                             (entry.zone and entry.zone:lower() == searchTerm) or
+                             (entry.guild and entry.guild:lower() == searchTerm) or
+                             (entry.race and entry.race:lower() == searchTerm))
+                -- Fuzzy match mode: substring search across all fields
+                else
+                    match = (name:lower():find(searchTerm) or
+                             (entry.class and entry.class:lower():find(searchTerm)) or
+                             (entry.zone and entry.zone:lower():find(searchTerm)) or
+                             (entry.guild and entry.guild:lower():find(searchTerm)) or
+                             (entry.race and entry.race:lower():find(searchTerm)) or
+                             levelStr:find(searchTerm))
+                end
+
+                if match then
                     local t = GetPoolTable()
                     t.name = name
                     t.level = entry.level or 0
                     t.class = entry.class
                     t.zone = entry.zone
+                    t.race = entry.race
                     t.guild = entry.guild
                     t.faction = entry.faction
                     t.seen = entry.lastSeen or 0
@@ -290,11 +356,23 @@ function Whorkaround:InitGUI()
                 if a.seen == b.seen then return a.name:lower() < b.name:lower() end
                 return a.seen > b.seen
             end
+            -- Level stores mixed types (number or "?"); always compare numerically.
+            if currentSortKey == "level" then
+                local numA = tonumber(a.level) or 0
+                local numB = tonumber(b.level) or 0
+                if currentSortOrder == "ASC" then
+                    if numA == numB then return a.seen > b.seen end
+                    return numA < numB
+                else
+                    if numA == numB then return a.seen > b.seen end
+                    return numA > numB
+                end
+            end
             local valA = a[currentSortKey] or ""
             local valB = b[currentSortKey] or ""
             if type(valA) == "string" then valA = valA:lower() end
             if type(valB) == "string" then valB = valB:lower() end
-            
+
             if currentSortOrder == "ASC" then
                 if valA == valB then return a.seen > b.seen end
                 return valA < valB
@@ -364,7 +442,7 @@ function Whorkaround:InitGUI()
                 end
                 
                 nameText:SetText(displayName); nameText:SetTextColor(r, g, b)
-                levelText:SetText((d.level or 0) > 0 and d.level or "??")
+                levelText:SetText(DisplayLevel(d.level))
                 classText:SetText(displayClass)
 
                 if Whorkaround_Settings and Whorkaround_Settings.factionColors then
@@ -385,20 +463,42 @@ function Whorkaround:InitGUI()
                 end
 
                 if dCol == "guild" then
+                    variableText:SetJustifyH("LEFT")
                     variableText:SetText(d.guild or "")
                 elseif dCol == "race" then
-                    variableText:SetText(d.race or "")
+                    variableText:SetJustifyH("CENTER")
+                    local raceDisplay = d.race and ({
+                        ["NightElf"]  = "Night Elf",
+                        ["BloodElf"]  = "Blood Elf",
+                        ["Scourge"]   = "Undead",
+                    })[d.race] or d.race or ""
+                    variableText:SetText(raceDisplay)
                 elseif dCol == "seen" then
+                    variableText:SetJustifyH("CENTER")
                     variableText:SetText(GetRelativeTime(d.seen or 0))
                 else
+                    variableText:SetJustifyH("LEFT")
                     variableText:SetText(d.zone or "")
                 end
 
                 button.playerName = d.name
+                button.whoName = d.name  -- keep Blizzard's native click from writing nil to WhoFrame.selectedName
+                local isSelected = WhoFrame.selectedName and d.name:lower() == WhoFrame.selectedName:lower()
+                if isSelected then button:LockHighlight() else button:UnlockHighlight() end
                 button:Show()
             else
+                button:UnlockHighlight()
                 button:Hide()
             end
+        end
+
+        -- Enable action buttons only when a player is selected
+        if WhoFrame.selectedName and WhoFrame.selectedName ~= "" then
+            WhoFrameAddFriendButton:Enable()
+            WhoFrameGroupInviteButton:Enable()
+        else
+            WhoFrameAddFriendButton:Disable()
+            WhoFrameGroupInviteButton:Disable()
         end
     end
 
@@ -428,8 +528,14 @@ function Whorkaround:InitGUI()
         end
     end
 
-    Whorkaround.SyncBrowser = function(force)
+    Whorkaround.SyncBrowser = function(self, force)
         if not tab1 or not tab1:GetChecked() or not WhoFrame:IsVisible() then return end
+        
+        -- If the user is actively filtering, skip background syncs to avoid resetting the list
+        -- while they are trying to find someone. Manual typing still triggers live-updates.
+        local query = WhoFrameEditBox:GetText()
+        if not force and query and query ~= "" then return end
+
         Whorkaround_WhoList_Update()
     end
 
@@ -483,6 +589,14 @@ function Whorkaround:InitGUI()
         info.checked = (selected == "zone")
         UIDropDownMenu_AddButton(info)
 
+        info.text = "Race"; info.value = "race"
+        info.checked = (selected == "race")
+        UIDropDownMenu_AddButton(info)
+
+        info.text = "Guild"; info.value = "guild"
+        info.checked = (selected == "guild")
+        UIDropDownMenu_AddButton(info)
+
         info.text = "Last Seen"; info.value = "seen"
         info.checked = (selected == "seen")
         UIDropDownMenu_AddButton(info)
@@ -526,15 +640,33 @@ function Whorkaround:InitGUI()
                 end
                 WhoFrameEditBox:SetScript("OnTextChanged", function() Whorkaround_WhoList_Update() end)
                 WhoFrameEditBox:SetScript("OnEnterPressed", function(self)
-                    local text = self:GetText()
-                    if text ~= "" and not text:find(" ") then Whorkaround:Query(text) end
+                    local raw = self:GetText()
+                    -- Strip hyperlink formatting (spell/item/etc links) so they are never
+                    -- mistaken for player names.
+                    local plain = raw:gsub("|H[^|]+|h%[[^%]]+%]|h", "")
+                                     :gsub("|c%x+", ""):gsub("|r", "")
+                                     :gsub("^%s+", ""):gsub("%s+$", "")
+                    if plain ~= "" and not plain:find(" ") then Whorkaround:Query(plain) end
                     Whorkaround_WhoList_Update(); self:ClearFocus()
                 end)
                 WhoFrameEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
-                UIDropDownMenu_Initialize(WhoFrameDropDown, Whorkaround_DropDown_Initialize)
+                -- Search help tooltip
+                WhoFrameEditBox:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Search Syntax:", 1, 1, 1)
+                    GameTooltip:AddLine("Fuzzy: |cffffd100John|r - searches all fields", nil, nil, nil, true)
+                    GameTooltip:AddLine("Exact: |cffffd100\"John\"|r - exact field match", nil, nil, nil, true)
+                    GameTooltip:AddLine("Prefixes: |cffffd100g:|rGuild, |cffffd100r:|rRace, |cffffd100z:|rZone, |cffffd100c:|rClass, |cffffd100n:|rName", nil, nil, nil, true)
+                    GameTooltip:AddLine("Level: |cffffd10010-20|r - level range", nil, nil, nil, true)
+                    GameTooltip:Show()
+                end)
+                WhoFrameEditBox:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 local cur = UIDropDownMenu_GetSelectedValue(WhoFrameDropDown)
-                if cur ~= "zone" and cur ~= "seen" then UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "zone") end
+                if cur ~= "zone" and cur ~= "seen" and cur ~= "race" and cur ~= "guild" then UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "zone") end
+                -- Explicitly claim the dropdown init function now so ToggleDropDownMenu
+                -- never runs WhoFrameDropDown_Initialize (avoids the OnMouseUp crash).
+                UIDropDownMenu_Initialize(WhoFrameDropDown, Whorkaround_DropDown_Initialize)
 
                 WhoFrameColumnHeader1:Show(); WhoFrameColumnHeader2:Show(); WhoFrameColumnHeader3:Show(); WhoFrameColumnHeader4
                     :Show()
@@ -591,16 +723,10 @@ function Whorkaround:InitGUI()
     verText:SetPoint("LEFT", header, "RIGHT", 10, 0); verText:SetText("v" .. version); verText:SetTextColor(0.5, 0.5, 0.5)
 
     local tabBox = CreateEditBox(settings, "Output Chat Tab(s)", "outputTab",
-        "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.")
-    tabBox:SetPoint("TOPLEFT", 27, -45)
+        "Enter tab names separated by commas (e.g. General, Log). Leave blank for default.", "WhorkaroundOutputTabEB")
+    tabBox:SetPoint("TOPLEFT", 17, -60)
+    tabBox:SetWidth(145) -- Wider for tab names (Narrowed by 10px)
     components.tabBox = tabBox
-    -- Wider editbox for Tab names and centered alignment
-    for _, child in ipairs({ tabBox:GetChildren() }) do
-        if child:IsObjectType("EditBox") then
-            child:SetWidth(125)
-            child:SetPoint("TOPLEFT", 2, -14) -- Slight nudge for better alignment with label
-        end
-    end
 
     local autoOpen = CreateCheckBox(settings, "Auto-show DB", "overrideWho",
         "Automatically toggles the database view when opening the Social panel.")
@@ -609,16 +735,60 @@ function Whorkaround:InitGUI()
 
     local proxyCheck = CreateCheckBox(settings, "Proxy Mode", "allowProxy",
         "Allows other users to query players through you.")
-    proxyCheck:SetPoint("TOPLEFT", 27, -100)
+    proxyCheck:SetPoint("TOPLEFT", 17, -100)
     components.proxyCheck = proxyCheck
 
     local debugCheck = CreateCheckBox(settings, "Enable Debug", "debug",
         "Prints detailed background actions to chat (Network, Proxy, Cleanup).")
-    debugCheck:SetPoint("TOPLEFT", 27, -220)
+    debugCheck:SetPoint("BOTTOMLEFT", 182, 55) -- Bottom right, alongside DB Stats cluster
     debugCheck:HookScript("OnClick", function(self)
         Whorkaround.DebugMode = (self:GetChecked() == 1)
     end)
     components.debugCheck = debugCheck
+
+    local scannerCheck = CreateCheckBox(settings, "Ambient Scanner", "enableScanner",
+        "Passively gathers player info from the combat log (Zero FPS impact).")
+    scannerCheck:SetPoint("TOPLEFT", 182, -100) -- Column 2, below Auto-show DB
+    components.scannerCheck = scannerCheck
+
+    local chatLinksCheck = CreateCheckBox(settings, "Mention Links", "mentionHyperlinks",
+        "Enables [Name] and @Name mentions in chat.\n\nType [Name] or @Name in any chat box to create a clickable, class-coloured player link. Shift-clicking an existing player link also inserts [Name] into the edit box.\n\nDisabled by default.")
+    chatLinksCheck:SetPoint("TOPLEFT", 17, -220) -- Column 1, below Proxy Cooldown slider
+    components.chatLinksCheck = chatLinksCheck
+
+    -- Debug Level Dropdown (Arrow Button)
+    local debugLevelMenu = CreateFrame("Frame", "WhorkaroundDebugLevelMenu", settings, "UIDropDownMenuTemplate")
+    UIDropDownMenu_Initialize(debugLevelMenu, function(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = "Queries Only"
+        info.func = function() Whorkaround_Settings.debugLevel = 1 end
+        info.checked = (Whorkaround_Settings.debugLevel == 1)
+        UIDropDownMenu_AddButton(info)
+
+        info.text = "Verbose (All)"
+        info.func = function() Whorkaround_Settings.debugLevel = 2 end
+        info.checked = (Whorkaround_Settings.debugLevel == 2)
+        UIDropDownMenu_AddButton(info)
+    end)
+
+    local debugLevelBtn = CreateFrame("Button", nil, settings)
+    debugLevelBtn:SetSize(20, 20)
+    debugLevelBtn:SetPoint("LEFT", debugCheck.text, "RIGHT", 2, 0)
+    debugLevelBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+    debugLevelBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
+    debugLevelBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+
+    debugLevelBtn:SetScript("OnClick", function(self)
+        ToggleDropDownMenu(1, nil, debugLevelMenu, self, -130, 0)
+    end)
+    debugLevelBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Debug Verbosity", 1, 1, 1)
+        GameTooltip:AddLine("Queries: Only show network and database actions.\nVerbose: Show every scanner pulse and internal event.", nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    debugLevelBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    components.debugLevelBtn = debugLevelBtn
 
     -- Proxy State Dropdown (Arrow Button)
     local proxyModeMenu = CreateFrame("Frame", "WhorkaroundProxyModeMenu", settings, "UIDropDownMenuTemplate")
@@ -628,7 +798,7 @@ function Whorkaround:InitGUI()
     proxyModeBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
     proxyModeBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
     proxyModeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-
+    
     UIDropDownMenu_Initialize(proxyModeMenu, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
         info.text = "Always"
@@ -643,13 +813,14 @@ function Whorkaround:InitGUI()
     end)
 
     proxyModeBtn:SetScript("OnClick", function()
-        ToggleDropDownMenu(1, nil, proxyModeMenu, proxyModeBtn, 0, 0)
+        -- GROW LEFT: Offset by -130 to keep menu under the column
+        ToggleDropDownMenu(1, nil, proxyModeMenu, proxyModeBtn, -130, 0)
     end)
     components.proxyModeBtn = proxyModeBtn
 
     local proxyCooldown = CreateSlider(settings, "Cooldown", "proxyCooldown", 3, 30, 1, "Sec",
         "Limits how often you act as a proxy. Higher values reduce CPU usage but help the network less.")
-    proxyCooldown:SetPoint("TOPLEFT", 27, -165)
+    proxyCooldown:SetPoint("TOPLEFT", 17, -165)
     components.proxyCooldown = proxyCooldown
 
     local retentionSlider = CreateSlider(settings, "DB Purge after", "retentionWeeks", 1, 4, 1, "Weeks",
@@ -659,7 +830,7 @@ function Whorkaround:InitGUI()
 
     -- Footer Status Row (Vertical Stack)
     local statsHeader = settings:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    statsHeader:SetPoint("BOTTOMLEFT", 27, 65); statsHeader:SetText("Database Status")
+    statsHeader:SetPoint("BOTTOMLEFT", 17, 65); statsHeader:SetText("Database Status")
 
     local statsTotalLabel = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statsTotalLabel:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -5); statsTotalLabel:SetTextColor(0.53, 0.53, 0.53)
@@ -752,6 +923,74 @@ function Whorkaround:InitGUI()
     WhoFrameColumnHeader3:HookScript("OnClick", Column_OnClick)
     WhoFrameColumnHeader4:HookScript("OnClick", Column_OnClick)
 
+    local tooltipNameOrigFont = nil  -- saved original font for name-line resize
+
+    local function WhoButton_OnEnter_Hook(self)
+        if not tab1 or not tab1:GetChecked() or not self.playerName then return end
+        local d = Whorkaround_DB and Whorkaround_DB[self.playerName:lower()]
+        if not d then return end
+
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+        -- Normalize capitalization
+        local displayName = self.playerName:gsub("^%l", string.upper)
+        local displayClass = (d.class or "Unknown"):lower():gsub("^%l", string.upper)
+        local prettyRace = ({
+            NightElf = "Night Elf", BloodElf = "Blood Elf", Scourge = "Undead",
+        })[d.race] or d.race
+
+        local classKey = d.class and d.class:upper() or ""
+        local classColor = RAID_CLASS_COLORS[classKey] or { r = 1, g = 1, b = 1 }
+
+        -- Name (slightly larger font — saved/restored per-tooltip so other tooltips are unaffected)
+        GameTooltip:AddLine(displayName, classColor.r, classColor.g, classColor.b)
+        local nameText = _G["GameTooltipTextLeft1"]
+        if nameText then
+            local fontPath, fontSize, fontFlags = nameText:GetFont()
+            if fontPath then
+                tooltipNameOrigFont = { fontPath, fontSize, fontFlags }
+                nameText:SetFont(fontPath, (fontSize or 12) + 1, fontFlags or "")
+            end
+        end
+
+        -- Guild (below name, before level)
+        if d.guild and d.guild ~= "" then
+            GameTooltip:AddLine("<" .. d.guild .. ">", 0.1, 1, 0.1)
+        end
+
+        -- Level + Race + Class on one line
+        if prettyRace then
+            GameTooltip:AddLine(string.format("Level %s %s %s", DisplayLevel(d.level), prettyRace, displayClass), 1, 1, 1)
+        else
+            GameTooltip:AddLine(string.format("Level %s %s", DisplayLevel(d.level), displayClass), 1, 1, 1)
+        end
+
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine("Zone:", d.zone or "Unknown", 1, 0.82, 0, 1, 1, 1)
+
+        if d.faction and d.faction ~= "" then
+            local fR, fG, fB = 1, 1, 1
+            if d.faction == "Alliance" then fR, fG, fB = 0, 0.44, 0.87
+            elseif d.faction == "Horde" then fR, fG, fB = 1, 0.13, 0.13 end
+            GameTooltip:AddDoubleLine("Faction:", d.faction, 1, 0.82, 0, fR, fG, fB)
+        end
+
+        GameTooltip:AddDoubleLine("Last Seen:", GetRelativeTime(d.lastSeen or 0), 1, 0.82, 0, 1, 1, 1)
+
+        if d.source then
+            local sourceLabels = {
+                Scanner     = "Combat Log",
+                Sighting    = "Tooltip",
+                WhorkComm   = "Network",
+                FriendsList = "Friends List",
+                GuildRoster = "Guild Roster",
+            }
+            GameTooltip:AddDoubleLine("Source:", sourceLabels[d.source] or d.source, 0.5, 0.5, 0.5, 0.7, 0.7, 0.7)
+        end
+
+        GameTooltip:Show()
+    end
+
     local function WhoButton_OnClick_Hook(self, button)
         if tab1 and tab1:GetChecked() and self.playerName then
             if button == "LeftButton" and IsShiftKeyDown() then
@@ -764,17 +1003,32 @@ function Whorkaround:InitGUI()
                     if eb and eb:IsVisible() then
                         eb:Insert(link)
                     else
-                        print(string.format("%s: Level %d %s %s - %s", link, d.level, d.faction or "", d.class, d.zone))
+                        print(string.format("%s: Level %s %s %s - %s", link, DisplayLevel(d.level), d.faction or "", d.class, d.zone))
                     end
                 end
             elseif button == "LeftButton" then
                 WhoFrame.selectedWho = self.playerName
                 WhoFrame.selectedName = self.playerName
+                WhoFrameAddFriendButton:Enable()
+                WhoFrameGroupInviteButton:Enable()
                 Whorkaround_WhoList_Update()
             end
         end
     end
-    for i = 1, 17 do _G["WhoFrameButton" .. i]:HookScript("OnClick", WhoButton_OnClick_Hook) end
+
+    for i = 1, 17 do
+        local btn = _G["WhoFrameButton" .. i]
+        btn:HookScript("OnClick", WhoButton_OnClick_Hook)
+        btn:HookScript("OnEnter", WhoButton_OnEnter_Hook)
+        btn:HookScript("OnLeave", function()
+            if tooltipNameOrigFont then
+                local nameText = _G["GameTooltipTextLeft1"]
+                if nameText then nameText:SetFont(tooltipNameOrigFont[1], tooltipNameOrigFont[2], tooltipNameOrigFont[3] or "") end
+                tooltipNameOrigFont = nil
+            end
+            GameTooltip:Hide()
+        end)
+    end
 
     -- Mouse wheel support for the list
     WhoFrame:EnableMouseWheel(true)
@@ -799,17 +1053,24 @@ function Whorkaround:InitGUI()
         if frame == WhoFrameDropDown and tab1 and tab1:GetChecked() then Whorkaround_WhoList_Update() end
     end)
 
-    -- Dropdown Hijack
-    hooksecurefunc("WhoFrameDropDown_Initialize", function()
-        local info = UIDropDownMenu_CreateInfo()
-        info.text = "Last Seen"
-        info.value = "seen"
-        info.func = function(self)
-            UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, self.value)
-            Whorkaround_WhoList_Update()
+    -- Prevent Blizzard from resetting WhoFrameDropDown's init function while browser mode is active.
+    -- Without this, WhoList_Update() and similar Blizzard calls reset the init function to the
+    -- native WhoFrameDropDown_Initialize, causing our custom one to be bypassed or doubled up.
+    local whorkaroundDropDownLock = false
+    hooksecurefunc("UIDropDownMenu_Initialize", function(frame, initFunction)
+        if whorkaroundDropDownLock then return end
+        if frame == WhoFrameDropDown and initFunction ~= Whorkaround_DropDown_Initialize then
+            if tab1 and tab1:GetChecked() then
+                whorkaroundDropDownLock = true
+                UIDropDownMenu_Initialize(WhoFrameDropDown, Whorkaround_DropDown_Initialize)
+                whorkaroundDropDownLock = false
+            end
         end
-        UIDropDownMenu_AddButton(info)
     end)
+
+    -- No-op: superseded by Whorkaround_DropDown_Initialize which has all options.
+    -- Kept as hooksecurefunc cannot be un-registered.
+    hooksecurefunc("WhoFrameDropDown_Initialize", function() end)
 
     tab1 = CreateFrame("CheckButton", "WhorkaroundSideTab1", FriendsFrame)
     tab1:SetSize(32, 32); tab1:SetPoint("TOPLEFT", FriendsFrame, "TOPRIGHT", -32, -42)
@@ -823,8 +1084,17 @@ function Whorkaround:InitGUI()
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Database Browser", 1, 1, 1); GameTooltip:Show()
     end)
     tab1:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     tab1:SetScript("OnClick", function(self)
-        if self:GetChecked() then tab2:SetChecked(false) end
+        if self:GetChecked() then
+            tab2:SetChecked(false)
+            settings:Hide()
+            WhoListScrollFrame:Hide(); WhoFrameEditBox:Hide(); WhoFrameWhoButton:Hide()
+            UIDropDownMenu_SetSelectedValue(WhoFrameDropDown, "seen")
+            Whorkaround_WhoList_Update()
+        else
+            WhoListScrollFrame:Show(); WhoFrameEditBox:Show(); WhoFrameWhoButton:Show()
+        end
         SyncUI()
     end)
 
@@ -869,6 +1139,36 @@ function Whorkaround:InitGUI()
     hooksecurefunc(WhoListScrollFrame, "Show", Lockdown)
     hooksecurefunc(WhoFrameWhoButton, "Show", Lockdown)
 
+    -- Hijack the Refresh/Who button: in browser mode, query the selected player to refresh their DB entry.
+    -- Same-faction: goes through the normal Query() pipeline (guild roster → friends list → cache).
+    -- Cross-faction: sends a WhorkComm network request to proxies.
+    WhoFrameWhoButton:HookScript("OnClick", function()
+        if not (tab1 and tab1:GetChecked()) then return end
+        local name = WhoFrame.selectedName
+        if not name or name == "" then
+            -- No selection: just refresh the view
+            Whorkaround:SyncBrowser(true)
+            return
+        end
+        local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        local d = Whorkaround_DB and Whorkaround_DB[cleanName]
+        local playerFaction = UnitFactionGroup("player") or "Unknown"
+        local targetFaction = d and d.faction
+        if targetFaction and targetFaction ~= playerFaction and targetFaction ~= "Unknown" then
+            -- Cross-faction: request via network proxies
+            local tag = (targetFaction == "Horde") and "H" or "A"
+            if not Whorkaround.networkWaiters[cleanName] then
+                Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = false }
+                Whorkaround.bestNetworkHits[cleanName] = nil
+                Whorkaround:Request(name, tag)
+                print("|cff1abc9cWhorkaround:|r Querying network for |cffffffff" .. name:gsub("^%l", string.upper) .. "|r...")
+            end
+        else
+            -- Same-faction (or unknown): use normal query pipeline
+            Whorkaround:Query(name)
+        end
+    end)
+
     WhoFrame:HookScript("OnUpdate", function(self)
         if not tab2 or not tab2:GetChecked() then return end
         Lockdown()
@@ -909,11 +1209,34 @@ function Whorkaround:InitGUI()
         SyncUI()
     end)
 
-    hooksecurefunc("WhoList_Update", function()
-        if tab1 and tab1:GetChecked() then
-            Whorkaround_WhoList_Update()
+    -- Replace WhoList_Update so Blizzard's code never touches our browser's scroll state.
+    -- When browser mode is active we simply call our own renderer; Blizzard's version is
+    -- never reached, which also prevents the GetWhoInfo(out-of-range) crash.
+    -- In native mode we use pcall so that Epoch's FriendsFrame.lua calling GetWhoInfo beyond
+    -- the result count (or GetNumWhos being absent) cannot hard-crash the client.
+    do
+        local _origWhoList_Update = WhoList_Update
+        WhoList_Update = function()
+            if tab1 and tab1:GetChecked() then
+                Whorkaround_WhoList_Update()
+            else
+                -- Reset any residual browser scroll offset so Blizzard's index math stays in range.
+                WhoListScrollFrame.offset = 0
+                local ok = pcall(_origWhoList_Update)
+                if not ok then
+                    -- Epoch's GetWhoInfo crashed (no results or missing API guard).
+                    -- Clear stale buttons manually so the frame doesn't show stale data.
+                    for i = 1, 17 do
+                        local btn = _G["WhoFrameButton" .. i]
+                        if btn then btn:Hide() end
+                    end
+                    if WhoFrameTotals then WhoFrameTotals:SetText("0 People Found") end
+                    if WhoFrameGroupInviteButton then WhoFrameGroupInviteButton:Disable() end
+                    if WhoFrameAddFriendButton then WhoFrameAddFriendButton:Disable() end
+                end
+            end
         end
-    end)
+    end
 
     -- Apply ElvUI Skinning if available
     if Whorkaround.ApplyElvUISkin then

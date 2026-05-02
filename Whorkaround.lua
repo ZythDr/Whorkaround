@@ -103,6 +103,7 @@ end
 local colorCodeCache = {}
 
 -- Improved Class Color Detector (fast-path + cache + faction detection)
+-- Exposed on the Whorkaround table so other modules (e.g. MentionHyperlinks) can use it.
 local function GetClassColorCode(className, name)
     local nameLower = name and name:lower() or nil
     
@@ -165,6 +166,7 @@ local function GetClassColorCode(className, name)
     end
     return "|cffffffff"
 end
+Whorkaround.GetClassColorCode = GetClassColorCode
 
 -- Helper to get the correct output chat frames (cached; invalidated when outputTab setting changes)
 local cachedOutputFrames = nil
@@ -214,6 +216,9 @@ end
 function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, faction, timestamp)
     if not name then return end
 
+    -- Normalize the level sentinel: treat "?" or any non-positive-number as nil so that
+    -- all downstream comparisons (> 0, <= 60, %d format) are safe.
+    if type(level) ~= "number" or level <= 0 then level = nil end
     local prefix = "|cff1abc9cWhorkaround:|r "
     local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
     local displayName = name:gsub("^%l", string.upper)
@@ -257,7 +262,7 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         if Whorkaround.Request and not Whorkaround.networkWaiters[cleanName] then
             -- Both same-faction and enemy-faction skip if super-fresh (< 10s)
             local isEnemy = (faction ~= playerFaction)
-            local isFresh = cachedData and cachedData.level and cachedData.level > 0 and
+            local isFresh = cachedData and type(cachedData.level) == "number" and cachedData.level > 0 and
             (time() - (cachedData.lastSeen or 0) < 2)
 
             if not isFresh then
@@ -281,8 +286,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     Whorkaround.networkWaiters[cleanName] = nil
 
     -- Format the message
-    if (level and level > 0) or (cachedData and cachedData.level and cachedData.level > 0) then
-        local displayLevel = (level and level > 0 and level <= 60) and level or (cachedData and cachedData.level)
+    if (level and level > 0) or (cachedData and type(cachedData.level) == "number" and cachedData.level > 0) then
+        local displayLevel = (level and level > 0 and level <= 60) and level or (type(cachedData.level) == "number" and cachedData.level > 0 and cachedData.level)
         local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
         local displayFaction = faction or cachedData.faction or "Unknown"
 
@@ -337,14 +342,16 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     -- Update Database (Enforce Level > 0)
     if Whorkaround_DB and level and level > 0 then
         local isNew = not Whorkaround_DB[cleanName]
-        Whorkaround_DB[cleanName] = {
-            class = class,
-            level = level,
-            zone = (area ~= "Unknown") and area or (cachedData and cachedData.zone),
-            faction = faction,
-            lastSeen = timestamp,
-            source = source or (cachedData and "Cache" or "FriendsList")
-        }
+        local existing = Whorkaround_DB[cleanName] or {}
+        existing.class = class
+        existing.level = level
+        existing.zone = (area ~= "Unknown") and area or (cachedData and cachedData.zone)
+        existing.faction = faction
+        existing.lastSeen = timestamp
+        existing.source = source or (cachedData and "Cache" or "FriendsList")
+        -- Preserve scanner-gathered fields that this source cannot provide
+        -- (race and guild are only discoverable via unit inspection / mouseover)
+        Whorkaround_DB[cleanName] = existing
         if Whorkaround.SyncBrowser then Whorkaround:SyncBrowser(isNew) end
     end
 
@@ -681,13 +688,16 @@ frame:SetScript("OnEvent", function(self, event, ...)
             -- MUST initialize Settings first — migration block reads it
             Whorkaround_Settings = Whorkaround_Settings or {}
             if Whorkaround_Settings.overrideWho == nil then Whorkaround_Settings.overrideWho = true end
-            if Whorkaround_Settings.allowProxy == nil then Whorkaround_Settings.allowProxy = false end
+            if Whorkaround_Settings.allowProxy == nil then Whorkaround_Settings.allowProxy = true end
             if Whorkaround_Settings.outputTab == nil then Whorkaround_Settings.outputTab = "" end
             if Whorkaround_Settings.retentionWeeks == nil then Whorkaround_Settings.retentionWeeks = 4 end
             if Whorkaround_Settings.factionColors == nil then Whorkaround_Settings.factionColors = false end
-            if Whorkaround_Settings.proxyCooldown == nil then Whorkaround_Settings.proxyCooldown = 5 end
+            if Whorkaround_Settings.proxyCooldown == nil then Whorkaround_Settings.proxyCooldown = 15 end
             if Whorkaround_Settings.proxyOutCombat == nil then Whorkaround_Settings.proxyOutCombat = true end
             if Whorkaround_Settings.debug == nil then Whorkaround_Settings.debug = false end
+            if Whorkaround_Settings.debugLevel == nil then Whorkaround_Settings.debugLevel = 1 end
+            if Whorkaround_Settings.enableScanner == nil then Whorkaround_Settings.enableScanner = true end
+            if Whorkaround_Settings.mentionHyperlinks == nil then Whorkaround_Settings.mentionHyperlinks = false end
 
             Whorkaround_DB = Whorkaround_DB or {}
 
@@ -806,9 +816,9 @@ function Whorkaround:ProxyQuery(name)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
 
-    if (gLevel and gLevel > 0) or (cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < 60)) then
+    if (gLevel and gLevel > 0) or (cached and type(cached.level) == "number" and cached.level > 0 and (time() - (cached.lastSeen or 0) < 60)) then
         Whorkaround:Log("Instant Proxy match for " .. displayName .. "! Broadcasting immediately.", "PROXY")
-        local level = gLevel or cached.level
+        local level = gLevel or (type(cached.level) == "number" and cached.level > 0 and cached.level)
         local class = gClass or cached.class
         local zone = gZone or cached.zone
         local faction = (cached and cached.faction) or UnitFactionGroup("player")
@@ -907,7 +917,7 @@ function Whorkaround:Query(name, silent)
 
     -- Normal fresh cache check (Enemies < 10s, Same-faction < 5s)
     local threshold = isEnemy and 10 or 5
-    if cached and cached.level and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
+    if cached and type(cached.level) == "number" and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
         Whorkaround:Log("Fresh cache hit for " .. displayName .. ". Skipping Friends List.", "LOCAL")
         if not silent then
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
@@ -943,58 +953,6 @@ function Whorkaround:Query(name, silent)
     displayName)
 end
 
-local function OnEditBoxTextChanged(self)
-    local text = self:GetText()
-    if not text or text == "" then return end
-    
-    local function TriggerQuery(name)
-        local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
-        local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-        if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
-            Whorkaround:Log("Editbox regex matched name: " .. name, "LOCAL")
-        end
-        if not data or (time() - (data.lastSeen or 0) > 60) then 
-            Whorkaround:Query(dbKey, true) 
-        elseif Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
-            Whorkaround:Log("Skipping editbox query for " .. name .. " (Data is fresh)", "LOCAL")
-        end
-    end
-    
-    for name in text:gmatch("%[([%a]+)%]") do TriggerQuery(name) end
-    local startName = text:match("^@([%a]+)%s")
-    if startName then TriggerQuery(startName) end
-    for name in text:gmatch("%s@([%a]+)%s") do TriggerQuery(name) end
-end
-
-local function HookChat()
-    local orig = ChatFrame_OnHyperlinkShow
-    ChatFrame_OnHyperlinkShow = function(...)
-        local link, text, button; local arg1 = ...
-        if type(arg1) == "table" then _, link, text, button = ... else link, text, button = ... end
-        if type(link) == "string" and link:sub(1, 7) == "player:" then
-            local name = link:match("player:([^:]+)")
-            if name then
-                if IsShiftKeyDown() then
-                    local eb = ChatEdit_GetActiveWindow()
-                    if eb then 
-                        eb:Insert("[" .. name:gsub("^%l", string.upper) .. "]")
-                        return 
-                    end
-                    Whorkaround:Query(name)
-                    return
-                elseif button == "RightButton" then
-                    FriendsFrame_ShowDropdown(name, 1); return
-                end
-            end
-        end
-        return orig(...)
-    end
-    for i = 1, 10 do
-        local eb = _G["ChatFrame" .. i .. "EditBox"]; if eb then eb:HookScript("OnTextChanged", OnEditBoxTextChanged) end
-    end
-end
-HookChat()
-
 function Whorkaround:Find(query)
     if not query or query == "" then return end
     query = query:lower(); local results = {}; local count = 0
@@ -1013,40 +971,6 @@ function Whorkaround:Find(query)
             r.data.faction or "", r.data.zone or "Unknown"))
     end
 end
-
-local function ChatLinkFilter(self, event, msg, ...)
-    if type(msg) == "string" and (msg:find("%[") or msg:find("@")) then
-        msg = msg:gsub("(|H.-|h.-|h)",
-            function(link) return link:gsub("%[", "\002"):gsub("%]", "\003"):gsub("@", "\004") end)
-            
-        local function ReplaceBracket(name)
-            local dbKey = name:lower()
-            local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-            local color = GetClassColorCode(data and data.class, name)
-            local displayName = name:gsub("^%l", string.upper)
-            return string.format("|Hplayer:%s|h%s[%s]|r|h", name, color, displayName)
-        end
-
-        local function ReplaceAt(name)
-            local dbKey = name:lower()
-            local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-            local color = GetClassColorCode(data and data.class, name)
-            local displayName = name:gsub("^%l", string.upper)
-            return string.format("|Hplayer:%s|h%s@%s|r|h", name, color, displayName)
-        end
-
-        msg = msg:gsub("%[([%a]+)%]", ReplaceBracket)
-        msg = msg:gsub("^@([%a]+)", ReplaceAt)
-        msg = msg:gsub("(%s)@([%a]+)", function(space, name) return space .. ReplaceAt(name) end)
-        
-        msg = msg:gsub("\002", "["):gsub("\003", "]"):gsub("\004", "@")
-        return false, msg, ...
-    end
-end
-local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_PARTY",
-    "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER",
-    "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE" }
-for _, event in ipairs(chatEvents) do ChatFrame_AddMessageEventFilter(event, ChatLinkFilter) end
 
 -- REGISTER SLASH COMMANDS (THE SIMPLE YESTERDAY WAY)
 SLASH_WHORK1 = "/whork"
