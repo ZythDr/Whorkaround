@@ -363,10 +363,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
                         if Whorkaround_DB then
                             if not Whorkaround_DB[cleanName] or timestamp > (Whorkaround_DB[cleanName].lastSeen or 0) then
                                 Whorkaround:Log("Incoming network data for " .. name .. " (" .. (isProxy == "P" and "Live" or "Cache") .. ")", "NETWORK")
-                                Whorkaround_DB[cleanName] = {
-                                    class = class, level = level, zone = zone,
-                                    faction = faction, lastSeen = timestamp, source = "WhorkComm"
-                                }
+                                local existing = Whorkaround_DB[cleanName] or {}
+                                existing.class = class
+                                existing.level = level
+                                existing.zone = zone
+                                existing.faction = faction
+                                existing.lastSeen = timestamp
+                                existing.source = "WhorkComm"
+                                -- Preserve race/guild gathered by the local scanner; network peers don't transmit them
+                                Whorkaround_DB[cleanName] = existing
                                 if Whorkaround.ResolveNetworkWait then
                                     Whorkaround:ResolveNetworkWait(cleanName, level, class, zone, faction, timestamp, isProxy)
                                 end

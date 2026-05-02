@@ -11,23 +11,35 @@ function Whorkaround:SkinGUIComponents(components)
 
     if components.maintenanceBtn then S:HandleNextPrevButton(components.maintenanceBtn, "down") end
     if components.proxyModeBtn then S:HandleNextPrevButton(components.proxyModeBtn, "down") end
+    if components.debugLevelBtn then S:HandleNextPrevButton(components.debugLevelBtn, "down") end
 
     if components.tabBox then
-        -- tabBox is a container, find the EditBox inside
-        for _, child in ipairs({ components.tabBox:GetChildren() }) do
-            if child:IsObjectType("EditBox") then
-                child:StripTextures()
-                S:HandleEditBox(child)
+        local eb = components.tabBox
+        S:HandleEditBox(eb)
+        eb:SetTextInsets(8, 8, 0, 0)
+        if eb.backdrop then
+            eb.backdrop:SetFrameLevel(eb:GetFrameLevel() - 1)
+        end
+    end
+
+    -- Checkboxes (Generic handling for all other editboxes found in containers)
+    for _, comp in pairs(components) do
+        if type(comp) == "table" and comp.IsObjectType and comp:IsObjectType("EditBox") then
+            S:HandleEditBox(comp)
+            comp:SetTextInsets(8, 8, 0, 0)
+            if comp.backdrop then
+                comp.backdrop:SetFrameLevel(comp:GetFrameLevel() - 1)
             end
         end
     end
 
     -- Checkboxes
+    if components.scannerCheck then S:HandleCheckBox(components.scannerCheck) end
+    if components.debugCheck then S:HandleCheckBox(components.debugCheck) end
     if components.autoOpen then S:HandleCheckBox(components.autoOpen) end
     if components.proxyCheck then S:HandleCheckBox(components.proxyCheck) end
     if components.browserFactionColors then S:HandleCheckBox(components.browserFactionColors) end
     if components.factionColorCheck then S:HandleCheckBox(components.factionColorCheck) end
-    if components.debugCheck then S:HandleCheckBox(components.debugCheck) end
 
 
     if components.proxyCooldown then

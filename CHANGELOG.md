@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-05-02
+
+### New
+- **Ambient Scanner:** Passively collects player info (level, class, race, zone) from the combat log and mouseover/target events with zero FPS cost. On by default for new installs.
+- **Mention Links module:** `[Name]` and `@Name` in chat can now be turned into class-coloured clickable player links. Opt-in toggle in Options, off by default. Shift-clicking a player link with the chat box open pastes their name into it (plain name normally, `[Name]` syntax when Mention Links is on).
+- **DB Browser improvements:** Hover tooltips show a cleaner layout (Name → Guild → Level/Race/Class → Zone → Faction → Last Seen → Source), with human-readable source labels ("Combat Log", "Tooltip", "Network", etc.).
+- **Smart WhoFrame Refresh button:** Refreshing a selected same-faction player goes through the normal query pipeline; cross-faction fires a network proxy request.
+
+### Changed
+- New install defaults: Proxy Mode on (Out of Combat only), 15s cooldown, Ambient Scanner on.
+- Dropdown menus in Options are now consistent — all use `ToggleDropDownMenu` so a second click closes them.
+- Enable Debug and its verbosity button moved to the bottom-right of the Options panel alongside the DB Stats cluster.
+
+### Fixed
+- Shift-clicking a player name in chat no longer sends a visible `/who` query when the chat edit box is open.
+- Spell names (e.g. `[Mutilate]` from shift-clicking a spell) no longer get picked up as player name mentions, preventing an infinite `/who` loop every ~3 seconds.
+- Two `GetWhoInfo` / `GetNumWhos` crashes specific to Epoch's client build: one when opening the Friends panel with no prior `/who` results, one when the Who frame was idle and `FriendsFrame_Update` fired.
+- Add Friend and Group Invite buttons now correctly enable/disable based on the selected DB entry.
+- Left-clicking a DB entry no longer causes the list to scroll back to the top.
+- Combat log entries now survive a `/reload` instead of being pruned on startup.
+
 ## [1.4.25] - 2026-05-01
 
 ### Fixed
