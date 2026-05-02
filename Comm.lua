@@ -361,6 +361,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local faction = (f == "A") and "Alliance" or (f == "H" and "Horde" or "Unknown")
                     if level and level > 0 and level <= 60 and Whorkaround.validClasses[class] and (faction == "Alliance" or faction == "Horde") and zone and zone:len() < 50 then
                         if Whorkaround_DB then
+                            local hasWaiter = Whorkaround.networkWaiters and Whorkaround.networkWaiters[cleanName]
                             if not Whorkaround_DB[cleanName] or timestamp > (Whorkaround_DB[cleanName].lastSeen or 0) then
                                 Whorkaround:Log("Incoming network data for " .. name .. " (" .. (isProxy == "P" and "Live" or "Cache") .. ")", "NETWORK")
                                 local existing = Whorkaround_DB[cleanName] or {}
@@ -372,9 +373,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
                                 existing.source = "WhorkComm"
                                 -- Preserve race/guild gathered by the local scanner; network peers don't transmit them
                                 Whorkaround_DB[cleanName] = existing
-                                if Whorkaround.ResolveNetworkWait then
-                                    Whorkaround:ResolveNetworkWait(cleanName, level, class, zone, faction, timestamp, isProxy)
-                                end
+                            end
+                            -- Always resolve the waiter even if our DB entry is newer —
+                            -- otherwise the timestamp suppression silently eats the response.
+                            if hasWaiter and Whorkaround.ResolveNetworkWait then
+                                Whorkaround:ResolveNetworkWait(cleanName, level, class, zone, faction, timestamp, isProxy)
                             end
                         end
                     end
