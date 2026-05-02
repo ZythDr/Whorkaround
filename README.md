@@ -1,32 +1,51 @@
 # Whorkaround
 
-### Whorkaround is a "best-effort" /who replacement for Project Epoch where the standard /who command is disabled. It provides a robust alternative for identifying players by gathering data from multiple sources and building a persistent, account-wide database of the players you encounter.  
-### It functions primarily by temporarily adding players to your friends list, reading their level, zone and class info, then displaying it in chat similar to a regular /who result.  
-### Same-faction lookups should work pretty well and as expected, but cross-faction lookups still need a lot of polish.  
-### For cross-faction lookups it relies on users requesting and sharing /who lookup data through a chat channel, similar to how other broadcasting addons like LFG etc function.
+A best-effort workaround for the missing `/who` on Project Epoch. Whorkaround builds a persistent database of players you encounter and lets you look them up by name — including offline players (shows cached "last seen" data) and enemy faction members (through "proxy" users that reply to your requests).
 
-## Key Features
 
-- **Database Browser**: Integrated directly into the Blizzard Social Panel. Access and filter your historical player database with real-time searching and sorting.
-- **Authoritative Data**: Provides exact Level, Class, and Faction information. No more "guessed" data—if a player is found, the results are accurate.
-- **High-Accuracy Network Protocol**: When you query an enemy or an offline player, Whorkaround scans the network. The protocol uses "Seniority Suppression," ensuring the fresher data always takes priority.
-- **Self-Response System**: If you query a player who is also using Whorkaround, their addon will immediately auto-respond with 100% accurate, live information about themselves.
-- **Offline & Cross-Faction Discovery**: Supports identifying opposing faction members and offline same-faction players by leveraging the community database.
-- **Proxy Lookups**: Queries for enemy faction players automatically trigger community members on that side to perform live "Friends List" checks on your behalf.
-- **Last Seen Tracking**: The database records relative timestamps (e.g., "5m ago"), allowing you to judge the age and reliability of data at a glance.
-- **Options Dashboard**: A dedicated side-tab for managing data retention (1-4 weeks), configuring proxy settings, and viewing database statistics.
-- **Smart Linking & Mentions**: Link any player in chat by typing [Name] or @Name. The addon colorizes the name by class, normalizes capitalization, and creates a functional player hyperlink.
-- **Silent Operation**: All background queries and friends-list "handshakes" are handled quietly. System messages are suppressed, and the friends list is automatically managed to prevent clutter.
+---
+
+## How It Works
+
+Every time you see another player — in combat, mousing over them, targeting them, or receiving a network response — Whorkaround quietly records their name, level, class, race, and zone. Over time this builds into a searchable local database you can query any time, even when those players are offline (showing cached/last seen data).
+
+For players not yet in your database, Whorkaround can reach out to the network: other users running the addon will respond automatically with live data, including cross-faction lookups via proxy.
+
+---
+
+## Features
+
+**Database Browser**
+Accessible from the Social panel (the same window as the Friends list). Searchable and sortable — filter by name, class, or zone. Click any entry to query for a live update.
+
+**Ambient Scanner**
+Passively collects player data from the combat log, mouseover events, and tooltips with no noticeable performance cost. Runs in the background automatically.
+
+**Network Lookups**
+Looking up an enemy faction player triggers a proxy request: a community member on that side performs a live Friends List check on your behalf and sends the result back. Query any player by name with `/who Name`. If they were very recently cached in you DB, you'll see an instant result. If not, Whorkaround asks the network — other users respond automatically with live or cached data.
+
+**Mention Links** *(optional, opt-in)*
+Type `[Name]` or `@Name` in chat and Whorkaround will turn it into a class-coloured clickable player link. Toggle this on in Options if you want it.
+This is disabled by default.
+
+**Options Panel**
+Accessible from the Friends List Who-tab. Configure proxy behaviour, database retention, and the Mention Links feature.
+
+---
 
 ## Commands
 
-- `/who Name` or `/whom Name` - Performs a manual query for a player.
-- `/whogui` - Opens the Social panel directly to the Database Browser and Options.
-- `/whofind Query` - Rapidly searches your local database for players matching the Name, Class, or Zone.
-- `/whostats` - Displays a breakdown of your database totals and faction counts.
-- `/whocleardb` - Wipes your local player database.
-- `/whodebug` - Toggles technical logging and verifies network connection.
+| Command | What it does |
+|---|---|
+| `/who Name` | Query a player by name |
+| `/whofind text` | Search your local database |
+| `/whogui` | Open the Database Browser directly |
+| `/whostats` | Show database totals |
+| `/whocleardb` | Wipe your local database |
+| `/whodebug` | Toggle debug logging |
 
-### Compatibility
+---
 
-Designed specifically for Project Epoch. Fully compatible with ElvUI and ElvUI Enhanced, harvesting their internal caches to populate your database even faster.
+## Compatibility
+
+Designed for **Project Epoch** (WoW 3.3.5). Compatible with ElvUI and ElvUI Enhanced — if either is installed, Whorkaround will also pull class data from their internal caches.
