@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-05-02
+
+### Fixed
+- Squashed a crash that could occur when the Ambient Scanner had seen a player but couldn't pin down their level yet. A few spots in the network layer weren't expecting that and tripped over it.
+
 ## [1.5.0] - 2026-05-02
 
 ### New
