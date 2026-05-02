@@ -114,7 +114,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
         for name, sendTime in pairs(scheduledResponses) do
             if now >= sendTime then
                 local data = Whorkaround_DB and Whorkaround_DB[name]
-                if data and data.level and data.level > 0 then
+                if data and type(data.level) == "number" and data.level > 0 then
                     local isLocal = (data.source == "FriendsList" or data.source == "Manual" or data.source == "Sighting")
                     if isLocal then
                         if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
@@ -204,7 +204,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 end
                 
                 -- PROXY LOGIC: Allow proxy if no cache OR cache is older than 60s
-                local hasFreshCache = data and data.level and data.level > 0 and (time() - (data.lastSeen or 0) < 60)
+                local hasFreshCache = data and type(data.level) == "number" and data.level > 0 and (time() - (data.lastSeen or 0) < 60)
                 
                 local now = GetTime()
                 local proxyCooldown = Whorkaround_Settings.proxyCooldown or 5
@@ -221,7 +221,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     scheduledResponses[cleanName] = nil
                 end
 
-                if data and data.level and data.level > 0 then
+                if data and type(data.level) == "number" and data.level > 0 then
                     -- SENIORITY SUPPRESSION (CACHED DATA):
                     local age = time() - (data.lastSeen or 0)
                     local isFresh = (age < 30)
