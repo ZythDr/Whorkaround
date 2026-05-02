@@ -286,8 +286,8 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     Whorkaround.networkWaiters[cleanName] = nil
 
     -- Format the message
-    if (level and level > 0) or (cachedData and cachedData.level and cachedData.level > 0) then
-        local displayLevel = (level and level > 0 and level <= 60) and level or (cachedData and cachedData.level)
+    if (level and level > 0) or (cachedData and type(cachedData.level) == "number" and cachedData.level > 0) then
+        local displayLevel = (level and level > 0 and level <= 60) and level or (type(cachedData.level) == "number" and cachedData.level > 0 and cachedData.level)
         local displayArea = (area and area ~= "Unknown") and area or (cachedData and cachedData.zone) or "Unknown"
         local displayFaction = faction or cachedData.faction or "Unknown"
 
