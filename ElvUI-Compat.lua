@@ -40,11 +40,12 @@ function Whorkaround:GetElvUIClass(name)
 
     if elvClass then
         -- Sync back to Whorkaround_DB for offline persistence across sessions
-        if Whorkaround_DB and not (Whorkaround_DB[name] and Whorkaround_DB[name].class) then
-            Whorkaround_DB[name] = Whorkaround_DB[name] or {}
-            Whorkaround_DB[name].class = elvClass
-            Whorkaround_DB[name].lastSeen = time()
-            Whorkaround_DB[name].source = source
+        local dbKey = name:lower()
+        if Whorkaround_DB and not (Whorkaround_DB[dbKey] and Whorkaround_DB[dbKey].class) then
+            Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
+            Whorkaround_DB[dbKey].class = elvClass
+            Whorkaround_DB[dbKey].lastSeen = time()
+            Whorkaround_DB[dbKey].source = source
         end
         return elvClass
     end

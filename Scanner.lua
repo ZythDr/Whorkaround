@@ -226,12 +226,10 @@ scannerFrame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
--- ---------------------------------------------------------------------------
--- GameTooltip scrape: fires after the tooltip is fully shown, by which point
--- the client has loaded all unit data (race, guild, level, class, faction).
--- OnShow is used instead of OnTooltipSetUnit for 3.3.5 compatibility.
--- GetUnit() filters out non-unit tooltips (items, spells, NPCs) immediately.
--- ---------------------------------------------------------------------------
+-- Per-GUID tooltip cooldown: skip re-scanning a player we just scanned
+local tooltipSeen = {}
+local TOOLTIP_COOLDOWN = 30  -- seconds
+
 GameTooltip:HookScript("OnShow", function(self)
     if not Whorkaround_Settings or not Whorkaround_Settings.enableScanner then return end
 
@@ -241,7 +239,11 @@ GameTooltip:HookScript("OnShow", function(self)
     local name = UnitName(unit)
     if not name or name == UNKNOWN or name == UnitName("player") then return end
 
+    -- Skip if we've scanned this player recently
     local guid = UnitGUID(unit)
+    local now = GetTime()
+    if guid and tooltipSeen[guid] and (now - tooltipSeen[guid]) < TOOLTIP_COOLDOWN then return end
+
     local _, class     = UnitClass(unit)
     local _, raceToken = UnitRace(unit)
     local level        = UnitLevel(unit)
@@ -261,12 +263,15 @@ GameTooltip:HookScript("OnShow", function(self)
     Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
     local entry = Whorkaround_DB[dbKey]
 
+    -- Mark as seen now so even a no-change pass doesn't re-fire for 30s
+    if guid then tooltipSeen[guid] = now end
+
     local changed = false
-    if class                                          then entry.class   = class;     changed = true end
-    if raceToken  and raceToken  ~= entry.race        then entry.race    = raceToken; changed = true end
-    if guildName  and guildName  ~= entry.guild       then entry.guild   = guildName; changed = true end
+    if class        and class        ~= entry.class   then entry.class   = class;     changed = true end
+    if raceToken    and raceToken    ~= entry.race     then entry.race    = raceToken; changed = true end
+    if guildName    and guildName    ~= entry.guild    then entry.guild   = guildName; changed = true end
     if level and level > 0 and level ~= entry.level   then entry.level   = level;     changed = true end
-    if faction    and faction    ~= entry.faction     then entry.faction = faction;   changed = true end
+    if faction      and faction      ~= entry.faction  then entry.faction = faction;   changed = true end
 
     entry.name     = name
     entry.zone     = GetRealZoneText()
@@ -283,6 +288,104 @@ GameTooltip:HookScript("OnShow", function(self)
     local debugLevel = Whorkaround_Settings.debugLevel or 1
     if Whorkaround_Settings.debug and debugLevel >= 2 then
         Whorkaround:Log("Scanner: Tooltip scrape for " .. name .. " (race=" .. (raceToken or "nil") .. ", guild=" .. (guildName or "nil") .. ")", "LOCAL")
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Guild Roster Scanner
+-- ---------------------------------------------------------------------------
+-- Scans the guild roster on login and whenever GUILD_ROSTER_UPDATE fires
+-- (which includes member logins/logouts, independent of the chat notification
+-- setting). Throttled to at most GUILD_SCAN_PER_FRAME entries per OnUpdate
+-- tick so large guilds never cause a stutter.
+-- ---------------------------------------------------------------------------
+local GUILD_SCAN_PER_FRAME = 5    -- entries processed per OnUpdate tick (~300/sec at 60fps)
+local GUILD_SCAN_COOLDOWN  = 30   -- seconds between event-triggered (non-login) scans
+local guildScanLastTime    = 0
+local guildLoginScan       = false -- true after login, cleared on first GUILD_ROSTER_UPDATE
+
+local guildScanFrame = CreateFrame("Frame")
+guildScanFrame:Hide()
+guildScanFrame.idx   = 1
+guildScanFrame.total = 0
+
+guildScanFrame:SetScript("OnUpdate", function(self)
+    if not Whorkaround_DB then self:Hide(); return end
+    local weeks   = (Whorkaround_Settings and Whorkaround_Settings.retentionWeeks) or 4
+    local cutoff  = weeks * 7 * 24 * 3600  -- retention window in seconds
+    local processed = 0
+    while self.idx <= self.total and processed < GUILD_SCAN_PER_FRAME do
+        -- Return values: name, rank, rankIndex, level, class, zone, note, officerNote,
+        --                online, status, classFileName, achievementPoints, daysOffline
+        local name, _, _, level, _, zone, _, _, online, _, classFileName, _, daysOffline = GetGuildRosterInfo(self.idx)
+        self.idx    = self.idx + 1
+        processed   = processed + 1
+        if name and classFileName and classFileName ~= "" then
+            -- Skip offline members who haven't been online within the retention window —
+            -- adding them would circumvent the DB purge timer for inactive players.
+            if not online then
+                local secsOffline = (daysOffline or 0) * 86400
+                if secsOffline > cutoff then
+                    -- Too stale: skip entirely (don't create or update the entry)
+                    goto continue
+                end
+            end
+            local dbKey = strlower(name)
+            Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
+            local entry = Whorkaround_DB[dbKey]
+            -- class and level are always available from the roster cache
+            if classFileName ~= entry.class                       then entry.class = classFileName end
+            if level and level > 0 and level ~= entry.level       then entry.level = level end
+            -- faction/race not available from roster API — filled in by mouseover/tooltip/combat log
+            -- zone + lastSeen only updated when the member is currently online
+            if online then
+                if zone and zone ~= "" and zone ~= entry.zone     then entry.zone = zone end
+                entry.lastSeen = time()
+                entry.source   = "Guild"
+            end
+            entry.name = name  -- preserve display-case name
+        end
+        ::continue::
+    end
+    if self.idx > self.total then
+        self:Hide()
+        if Whorkaround.SyncBrowser then Whorkaround:SyncBrowser(false) end
+        if Whorkaround_Settings and Whorkaround_Settings.debug then
+            Whorkaround:Log("Guild scan complete (" .. self.total .. " members).", "LOCAL")
+        end
+    end
+end)
+
+local function StartGuildRosterScan()
+    if not GetGuildInfo("player") then return end  -- not in a guild
+    local total = GetNumGuildMembers()
+    if not total or total == 0 then return end
+    guildScanFrame.idx   = 1
+    guildScanFrame.total = total
+    guildScanLastTime    = GetTime()
+    guildScanFrame:Show()
+end
+
+local guildEventFrame = CreateFrame("Frame")
+guildEventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+guildEventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
+guildEventFrame:SetScript("OnEvent", function(self, event)
+    if not Whorkaround_Settings or not Whorkaround_Settings.enableScanner then return end
+    if event == "PLAYER_ENTERING_WORLD" then
+        if GetGuildInfo("player") then
+            guildLoginScan = true
+            GuildRoster()  -- request fresh roster from server; GUILD_ROSTER_UPDATE fires when ready
+        end
+    elseif event == "GUILD_ROSTER_UPDATE" then
+        if guildLoginScan then
+            -- First update after login: always scan
+            guildLoginScan = false
+            StartGuildRosterScan()
+        elseif not guildScanFrame:IsShown() and
+               (GetTime() - guildScanLastTime) >= GUILD_SCAN_COOLDOWN then
+            -- Member logged in or out: re-scan if cooldown expired and no scan running
+            StartGuildRosterScan()
+        end
     end
 end)
 

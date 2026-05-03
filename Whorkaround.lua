@@ -703,16 +703,20 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
             -- DB MIGRATION: Convert all keys to lowercase and PURGE invalid classes
             -- Only run once (guarded by version flag)
-            if not Whorkaround_Settings.dbVersion or Whorkaround_Settings.dbVersion < 2 then
+            if not Whorkaround_Settings.dbVersion or Whorkaround_Settings.dbVersion < 3 then
                 local migratedDB = {}
                 for k, v in pairs(Whorkaround_DB) do
                     local class = v.class and v.class:upper()
                     if validClasses[class] then
-                        migratedDB[k:lower()] = v
+                        local lk = k:lower()
+                        -- If two keys collapse to the same lowercase key, keep the newer one
+                        if not migratedDB[lk] or (v.lastSeen or 0) > (migratedDB[lk].lastSeen or 0) then
+                            migratedDB[lk] = v
+                        end
                     end
                 end
                 Whorkaround_DB = migratedDB
-                Whorkaround_Settings.dbVersion = 2
+                Whorkaround_Settings.dbVersion = 3
             end
             Whorkaround:CleanGhostFriends()
             Whorkaround:PurgeOldData()
