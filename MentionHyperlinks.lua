@@ -25,6 +25,14 @@ end
 -- Edit-box text scanner: silently pre-queries names typed as [Name] / @Name
 -- so the DB is warm when the message is sent.
 -- ---------------------------------------------------------------------------
+
+-- Per-editbox session cache: tracks names already queried since the box was
+-- opened. Cleared on EditBox:Hide so the next time the box is opened the
+-- names are treated as fresh again. Prevents infinite re-querying when a
+-- name resolves to nothing (no DB entry is created on miss, so without this
+-- guard every keystroke would re-fire the query).
+local editBoxQueried = {}  -- [editBox] = { [dbKey] = true }
+
 local function OnEditBoxTextChanged(self)
     if not IsEnabled() then return end
     local text = self:GetText()
@@ -35,13 +43,22 @@ local function OnEditBoxTextChanged(self)
     local plain = text:gsub("|H[^|]+|h%[[^%]]+%]|h", "")
                       :gsub("|c%x+", ""):gsub("|r", "")
 
+    local queried = editBoxQueried[self]
+    if not queried then
+        queried = {}
+        editBoxQueried[self] = queried
+    end
+
     local function TriggerQuery(name)
         local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        -- Skip if already queried this edit session (avoids infinite re-fire on miss)
+        if queried[dbKey] then return end
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-        if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
-            Whorkaround:Log("Mention pre-query: " .. name, "LOCAL")
-        end
         if not data or (time() - (data.lastSeen or 0) > 60) then
+            queried[dbKey] = true
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Mention pre-query: " .. name, "LOCAL")
+            end
             Whorkaround:Query(dbKey, true)
         end
     end
@@ -97,7 +114,13 @@ local function HookHyperlinkClick()
     -- Hook every chat edit box so OnTextChanged fires for mention scanning.
     for i = 1, 10 do
         local eb = _G["ChatFrame" .. i .. "EditBox"]
-        if eb then eb:HookScript("OnTextChanged", OnEditBoxTextChanged) end
+        if eb then
+            eb:HookScript("OnTextChanged", OnEditBoxTextChanged)
+            -- Clear the per-session queried cache when the box closes
+            eb:HookScript("OnHide", function(self)
+                editBoxQueried[self] = nil
+            end)
+        end
     end
 end
 HookHyperlinkClick()
