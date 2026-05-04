@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - ElvUI class lookups were writing player names with original capitalisation as DB keys (e.g. `"Blame"`) instead of lowercase, causing duplicate rows in the browser (e.g. "Blame" appearing twice). Fixed. A one-time DB migration on load will merge any existing duplicates, keeping whichever entry is newer.
 - Clicking Refresh too quickly could temporarily blank the browser list with "0 People Found" because Blizzard injects "- Please Wait -" into the search box while a server query is in-flight. The browser now ignores that string and keeps the current list visible.
+- Typing `[Name]` or `@Name` in chat was firing a network pre-query on every keystroke if the name wasn't in the DB yet, causing repeated `WKR:H:name` channel messages. Now queries at most once per name per time the chat box is open.
 
 ### Improved
 - Background scanner updates (combat log, tooltip, guild scan) no longer trigger an immediate browser redraw each time. They now coalesce into a single redraw on the next game frame, so a burst of 10 scanner hits only redraws the list once.
