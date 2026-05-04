@@ -323,29 +323,28 @@ guildScanFrame:SetScript("OnUpdate", function(self)
         if name and classFileName and classFileName ~= "" then
             -- Skip offline members who haven't been online within the retention window —
             -- adding them would circumvent the DB purge timer for inactive players.
+            local tooStale = false
             if not online then
                 local secsOffline = (daysOffline or 0) * 86400
-                if secsOffline > cutoff then
-                    -- Too stale: skip entirely (don't create or update the entry)
-                    goto continue
+                if secsOffline > cutoff then tooStale = true end
+            end
+            if not tooStale then
+                local dbKey = strlower(name)
+                Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
+                local entry = Whorkaround_DB[dbKey]
+                -- class and level are always available from the roster cache
+                if classFileName ~= entry.class                       then entry.class = classFileName end
+                if level and level > 0 and level ~= entry.level       then entry.level = level end
+                -- faction/race not available from roster API — filled in by mouseover/tooltip/combat log
+                -- zone + lastSeen only updated when the member is currently online
+                if online then
+                    if zone and zone ~= "" and zone ~= entry.zone     then entry.zone = zone end
+                    entry.lastSeen = time()
+                    entry.source   = "Guild"
                 end
+                entry.name = name  -- preserve display-case name
             end
-            local dbKey = strlower(name)
-            Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
-            local entry = Whorkaround_DB[dbKey]
-            -- class and level are always available from the roster cache
-            if classFileName ~= entry.class                       then entry.class = classFileName end
-            if level and level > 0 and level ~= entry.level       then entry.level = level end
-            -- faction/race not available from roster API — filled in by mouseover/tooltip/combat log
-            -- zone + lastSeen only updated when the member is currently online
-            if online then
-                if zone and zone ~= "" and zone ~= entry.zone     then entry.zone = zone end
-                entry.lastSeen = time()
-                entry.source   = "Guild"
-            end
-            entry.name = name  -- preserve display-case name
         end
-        ::continue::
     end
     if self.idx > self.total then
         self:Hide()
@@ -387,6 +386,211 @@ guildEventFrame:SetScript("OnEvent", function(self, event)
             StartGuildRosterScan()
         end
     end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Nameplate Scanner
+-- ---------------------------------------------------------------------------
+-- Uses the same "count-changed" trick as ElvUI: WorldFrame:GetNumChildren()
+-- is called every frame (near-free integer read). GetChildren() is only
+-- invoked when a new child appears. Each new nameplate gets a one-time
+-- OnShow hook that fires whenever the plate becomes visible, extracting
+-- data without any persistent per-frame iteration.
+-- ---------------------------------------------------------------------------
+
+-- Build a reverse green-channel → class map from RAID_CLASS_COLORS,
+-- identical to ElvUI's approach for enemy nameplate class detection.
+local npGreenToClass = {}
+for class, color in pairs(RAID_CLASS_COLORS) do
+    npGreenToClass[floor(color.g * 100 + 0.5) / 100] = class
+end
+
+-- Tracks names seen via nameplates this session so we don't re-fire
+-- the extraction for the same player within 60 seconds.
+local npSessionSeen = {}
+local NP_SEEN_COOLDOWN = 30
+
+-- Cache of party/raid unit tokens by player name for friendly class lookup.
+-- Refreshed on group composition events.
+local npGroupUnits = {}
+
+local function RefreshGroupUnits()
+    wipe(npGroupUnits)
+    if GetNumRaidMembers() > 0 then
+        for i = 1, 40 do
+            local unit = "raid"..i
+            if UnitExists(unit) then
+                npGroupUnits[UnitName(unit)] = unit
+            end
+        end
+    elseif GetNumPartyMembers() > 0 then
+        for i = 1, 4 do
+            local unit = "party"..i
+            if UnitExists(unit) then
+                npGroupUnits[UnitName(unit)] = unit
+            end
+        end
+    end
+end
+
+local function OnNameplateShow(plate)
+    if not Whorkaround_Settings or not Whorkaround_Settings.enableScanner then return end
+    if not Whorkaround_DB then return end
+
+    -- Get the native sub-frames the same way ElvUI does
+    local healthBar = plate:GetChildren()   -- first child is always the health StatusBar
+    -- ElvUI's OnCreated enumerates regions as:
+    -- 1=Threat, 2=Border, 3=CastBarBorder, 4=CastBarShield, 5=CastBarIcon,
+    -- 6=Highlight, 7=Name, 8=Level, 9=BossIcon, 10=RaidIcon, 11=EliteIcon
+    local nameRegion = select(7, plate:GetRegions())
+
+    if not healthBar or not nameRegion then return end
+
+    local name = nameRegion:GetText()
+    if not name or name == "" then return end
+    -- Strip cross-realm suffix (e.g. "-RealmName")
+    name = name:match("^([^%-]+)") or name
+
+    -- Throttle: skip if we've seen this name recently
+    local now = GetTime()
+    if npSessionSeen[name] and (now - npSessionSeen[name]) < NP_SEEN_COOLDOWN then return end
+
+    -- Determine unit type from health bar color (ElvUI's GetUnitInfo logic)
+    local r, g, b = healthBar:GetStatusBarColor()
+    local isPlayer, isFriendly
+    if r < 0.01 and b > 0.99 and g < 0.01 then
+        -- Pure blue: FRIENDLY_PLAYER
+        isPlayer  = true
+        isFriendly = true
+    elseif r < 0.01 and b < 0.01 and g > 0.99 then
+        -- Pure green: FRIENDLY_NPC — skip
+        return
+    elseif r > 0.99 and b < 0.01 then
+        -- Red variants: ENEMY_NPC — skip
+        return
+    elseif r > 0.5 and r < 0.6 and g > 0.5 and g < 0.6 and b > 0.5 and b < 0.6 then
+        -- Grey: ENEMY_NPC — skip
+        return
+    else
+        -- Everything else: ENEMY_PLAYER
+        isPlayer  = true
+        isFriendly = false
+    end
+
+    if not isPlayer then return end
+
+    -- Mark seen immediately so overlapping OnShow calls don't double-fire
+    npSessionSeen[name] = now
+
+    local dbKey = name:lower()
+    Whorkaround_DB[dbKey] = Whorkaround_DB[dbKey] or {}
+    local entry = Whorkaround_DB[dbKey]
+
+    -- Only update fields we can actually determine from a nameplate
+    entry.name     = name
+    entry.lastSeen = time()
+    entry.source   = entry.source or "Nameplate"
+
+    -- Level is region 8
+    local levelRegion = select(8, plate:GetRegions())
+    if levelRegion and levelRegion:GetObjectType() == "FontString" then
+        local lvl = tonumber(levelRegion:GetText())
+        if lvl and lvl > 0 then entry.level = lvl end
+    end
+
+    -- Class detection
+    local class
+    if isFriendly then
+        -- Friendly: try the group unit token first (reliable), then GetPlayerInfoByGUID
+        local groupUnit = npGroupUnits[name]
+        if groupUnit and UnitExists(groupUnit) and UnitName(groupUnit) == name then
+            local _, cls = UnitClass(groupUnit)
+            class = cls
+        end
+        if not class then
+            -- Not in group and no unit token available — friendly stranger class
+            -- cannot be decoded from the nameplate alone in 3.3.5. It will be
+            -- filled in by mouseover/tooltip/combat log when the player interacts.
+            -- Check mouseover as a last-ditch: if this player happens to already
+            -- be under the cursor right now we can grab it cheaply.
+            if UnitIsPlayer("mouseover") and UnitName("mouseover") == name then
+                local _, cls = UnitClass("mouseover")
+                class = cls
+            end
+        end
+        entry.faction = entry.faction or UnitFactionGroup("player")  -- friendly = same faction as us
+    else
+        -- Enemy: decode class from green channel of health bar
+        local gRounded = floor(g * 100 + 0.5) / 100
+        class = npGreenToClass[gRounded]
+        -- Faction: hostile = opposite of player's faction (valid on Epoch — enemy nameplates
+        -- are never cross-faction friendly)
+        if not entry.faction then
+            local pf = UnitFactionGroup("player")
+            if pf == "Horde" then entry.faction = "Alliance"
+            elseif pf == "Alliance" then entry.faction = "Horde" end
+        end
+    end
+
+    if class and class ~= entry.class then
+        entry.class = class
+    end
+
+    if Whorkaround.SyncBrowser then
+        Whorkaround:SyncBrowser(false)
+    end
+
+    if Whorkaround_Settings.debug and (Whorkaround_Settings.debugLevel or 1) >= 2 then
+        Whorkaround:Log(("Nameplate: %s class=%s faction=%s"):format(
+            name, class or "?", entry.faction or "?"), "LOCAL")
+    end
+end
+
+-- The watcher: throttled to 0.1s, processes ONE WorldFrame child per tick.
+-- Cost per tick: one elapsed accumulation, one GetNumChildren(), one select()
+-- from GetChildren(), one GetRegions() — all C-side reads, unmeasurable overhead.
+local NP_SCAN_INTERVAL = 0.1
+local npWatchFrame = CreateFrame("Frame")
+npWatchFrame:Hide()
+npWatchFrame.t   = 0
+npWatchFrame.idx = 1
+npWatchFrame:SetScript("OnUpdate", function(self, elapsed)
+    self.t = self.t + elapsed
+    if self.t < NP_SCAN_INTERVAL then return end
+    self.t = 0
+
+    if not Whorkaround_Settings or not Whorkaround_Settings.enableScanner then return end
+
+    local n = WorldFrame:GetNumChildren()
+    if n == 0 then return end
+    if self.idx > n then self.idx = 1 end
+
+    local plate = select(self.idx, WorldFrame:GetChildren())
+    self.idx = self.idx + 1
+
+    if plate and plate:IsVisible() then
+        -- Nameplates always have a Texture as their first region (the targeting overlay)
+        local region = plate:GetRegions()
+        if region and region:GetObjectType() == "Texture" then
+            OnNameplateShow(plate)
+        end
+    end
+end)
+
+-- Register group composition events to keep npGroupUnits fresh
+local npGroupFrame = CreateFrame("Frame")
+npGroupFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+npGroupFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+npGroupFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+npGroupFrame:SetScript("OnEvent", function() RefreshGroupUnits() end)
+
+-- Start the watcher after the player enters the world
+local npInitFrame = CreateFrame("Frame")
+npInitFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+npInitFrame:SetScript("OnEvent", function(self)
+    self:UnregisterAllEvents()
+    RefreshGroupUnits()
+    npWatchFrame:Show()
 end)
 
 Whorkaround:Log("Scanner module loaded (Disabled by default)", "LOCAL")
