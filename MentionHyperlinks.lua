@@ -26,10 +26,10 @@ end
 -- so the DB is warm when the message is sent.
 -- ---------------------------------------------------------------------------
 
--- Session-wide set of names already pre-queried via [Name]/@Name mentions.
--- Once a name is queried, it's never re-queried from chat mentions this session,
--- regardless of whether anything was found. Fresh data comes from mouseover/scanner.
-local mentionQueried = {}
+-- Per-editbox cache: tracks names already queried since this editbox was opened.
+-- Cleared on hide (after send or Escape), so the next time the box opens each
+-- name gets exactly one fresh query. Prevents infinite re-querying on no-result names.
+local editBoxQueried = {}  -- [editBox] = { [dbKey] = true }
 
 local function OnEditBoxTextChanged(self)
     if not IsEnabled() then return end
@@ -41,10 +41,16 @@ local function OnEditBoxTextChanged(self)
     local plain = text:gsub("|H[^|]+|h%[[^%]]+%]|h", "")
                       :gsub("|c%x+", ""):gsub("|r", "")
 
+    local queried = editBoxQueried[self]
+    if not queried then
+        queried = {}
+        editBoxQueried[self] = queried
+    end
+
     local function TriggerQuery(name)
         local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
-        if mentionQueried[dbKey] then return end
-        mentionQueried[dbKey] = true
+        if queried[dbKey] then return end
+        queried[dbKey] = true
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
         if not data or (time() - (data.lastSeen or 0) > 60) then
             if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
@@ -107,6 +113,10 @@ local function HookHyperlinkClick()
         local eb = _G["ChatFrame" .. i .. "EditBox"]
         if eb then
             eb:HookScript("OnTextChanged", OnEditBoxTextChanged)
+            -- Clear the per-open cache when the box closes (send or Escape)
+            eb:HookScript("OnHide", function(self)
+                editBoxQueried[self] = nil
+            end)
         end
     end
 end
