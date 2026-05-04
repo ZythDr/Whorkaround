@@ -14,6 +14,28 @@ function publicAPI.Query(name, silent)
     return Whorkaround:Query(name, silent)
 end
 
+function publicAPI.Refresh(name, silent)
+    local key = NormalizeApiName(name)
+    if not key then return end
+
+    local entry = Whorkaround_DB and Whorkaround_DB[key]
+    local playerFaction = UnitFactionGroup("player") or "Unknown"
+    local targetFaction = entry and entry.faction
+
+    if targetFaction and targetFaction ~= "Unknown" and targetFaction ~= playerFaction and Whorkaround.Request then
+        if not Whorkaround.networkWaiters[key] then
+            local displayName = (entry and entry.name) or name:gsub("^%l", string.upper)
+            local tag = (targetFaction == "Horde") and "H" or "A"
+            Whorkaround.networkWaiters[key] = { startTime = GetTime(), silent = not not silent }
+            Whorkaround.bestNetworkHits[key] = nil
+            Whorkaround:Request(displayName, tag)
+        end
+        return
+    end
+
+    return Whorkaround:Query(name, silent)
+end
+
 function publicAPI.GetEntry(name)
     local key = NormalizeApiName(name)
     local entry = key and Whorkaround_DB and Whorkaround_DB[key]

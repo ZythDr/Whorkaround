@@ -59,4 +59,5 @@ Whorkaround keeps its full addon table private, but exposes a minimal global API
 | API | What it does |
 |---|---|
 | `WhorkaroundAPI.Query(name, silent)` | Triggers the normal Whorkaround lookup pipeline |
+| `WhorkaroundAPI.Refresh(name, silent)` | Forces the smarter refresh path used by the browser refresh button, including enemy-faction network refreshes |
 | `WhorkaroundAPI.GetEntry(name)` | Returns a shallow copy of the cached DB entry for a player, or `nil` |
