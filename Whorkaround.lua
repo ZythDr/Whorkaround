@@ -1,5 +1,36 @@
 local addonName, Whorkaround = ...
 
+local publicAPI = _G.WhorkaroundAPI or {}
+_G.WhorkaroundAPI = publicAPI
+
+local function NormalizeApiName(name)
+    if type(name) ~= "string" then return nil end
+    name = name:lower():gsub("^%s*(.-)%s*$", "%1")
+    if name == "" then return nil end
+    return name
+end
+
+function publicAPI.Query(name, silent)
+    return Whorkaround:Query(name, silent)
+end
+
+function publicAPI.GetEntry(name)
+    local key = NormalizeApiName(name)
+    local entry = key and Whorkaround_DB and Whorkaround_DB[key]
+    if type(entry) ~= "table" then return nil end
+    return {
+        name = entry.name,
+        class = entry.class,
+        level = entry.level,
+        race = entry.race,
+        guild = entry.guild,
+        faction = entry.faction,
+        zone = entry.zone,
+        lastSeen = entry.lastSeen,
+        source = entry.source,
+    }
+end
+
 Whorkaround.pendingQueries = Whorkaround.pendingQueries or {}
 Whorkaround.removingFriends = Whorkaround.removingFriends or {}
 Whorkaround.addedSuppression = Whorkaround.addedSuppression or {}

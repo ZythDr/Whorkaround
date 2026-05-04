@@ -49,3 +49,14 @@ Accessible from the Friends List Who-tab. Configure proxy behaviour, database re
 ## Compatibility
 
 Designed for **Project Epoch** (WoW 3.3.5). Compatible with ElvUI and ElvUI Enhanced — if either is installed, Whorkaround will also pull class data from their internal caches.
+
+---
+
+## Public API
+
+Whorkaround keeps its full addon table private, but exposes a minimal global API for companion addons:
+
+| API | What it does |
+|---|---|
+| `WhorkaroundAPI.Query(name, silent)` | Triggers the normal Whorkaround lookup pipeline |
+| `WhorkaroundAPI.GetEntry(name)` | Returns a shallow copy of the cached DB entry for a player, or `nil` |
