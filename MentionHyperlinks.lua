@@ -25,6 +25,12 @@ end
 -- Edit-box text scanner: silently pre-queries names typed as [Name] / @Name
 -- so the DB is warm when the message is sent.
 -- ---------------------------------------------------------------------------
+
+-- Per-editbox cache: tracks names already queried since this editbox was opened.
+-- Cleared on hide (after send or Escape), so the next time the box opens each
+-- name gets exactly one fresh query. Prevents infinite re-querying on no-result names.
+local editBoxQueried = {}  -- [editBox] = { [dbKey] = true }
+
 local function OnEditBoxTextChanged(self)
     if not IsEnabled() then return end
     local text = self:GetText()
@@ -35,13 +41,21 @@ local function OnEditBoxTextChanged(self)
     local plain = text:gsub("|H[^|]+|h%[[^%]]+%]|h", "")
                       :gsub("|c%x+", ""):gsub("|r", "")
 
+    local queried = editBoxQueried[self]
+    if not queried then
+        queried = {}
+        editBoxQueried[self] = queried
+    end
+
     local function TriggerQuery(name)
         local dbKey = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        if queried[dbKey] then return end
+        queried[dbKey] = true
         local data = Whorkaround_DB and Whorkaround_DB[dbKey]
-        if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
-            Whorkaround:Log("Mention pre-query: " .. name, "LOCAL")
-        end
         if not data or (time() - (data.lastSeen or 0) > 60) then
+            if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
+                Whorkaround:Log("Mention pre-query: " .. name, "LOCAL")
+            end
             Whorkaround:Query(dbKey, true)
         end
     end
@@ -97,7 +111,13 @@ local function HookHyperlinkClick()
     -- Hook every chat edit box so OnTextChanged fires for mention scanning.
     for i = 1, 10 do
         local eb = _G["ChatFrame" .. i .. "EditBox"]
-        if eb then eb:HookScript("OnTextChanged", OnEditBoxTextChanged) end
+        if eb then
+            eb:HookScript("OnTextChanged", OnEditBoxTextChanged)
+            -- Clear the per-open cache when the box closes (send or Escape)
+            eb:HookScript("OnHide", function(self)
+                editBoxQueried[self] = nil
+            end)
+        end
     end
 end
 HookHyperlinkClick()

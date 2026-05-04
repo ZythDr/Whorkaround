@@ -273,6 +273,9 @@ function Whorkaround:InitGUI()
         if not tab1 or not tab1:GetChecked() then return end
 
         local rawQuery = WhoFrameEditBox:GetText() or ""
+        -- Blizzard writes PLEASE_WAIT ("- Please Wait -") into the edit box while a /who
+        -- query is in-flight. Don't treat it as a search term — just keep the current list.
+        if rawQuery == PLEASE_WAIT then return end
         local query = rawQuery:lower()
         
         -- Parse search mode and field prefix
@@ -528,15 +531,37 @@ function Whorkaround:InitGUI()
         end
     end
 
+    -- Coalesces rapid background DB updates into at most one redraw per frame.
+    -- Force=true (user actions: tab switch, sort, search) bypasses the queue and redraws immediately.
+    local syncDirty = false
+    local syncCoalesceFrame = CreateFrame("Frame")
+    syncCoalesceFrame:Hide()
+    syncCoalesceFrame:SetScript("OnUpdate", function(self)
+        self:Hide()
+        syncDirty = false
+        if tab1 and tab1:GetChecked() and WhoFrame:IsVisible() then
+            Whorkaround_WhoList_Update()
+        end
+    end)
+
     Whorkaround.SyncBrowser = function(self, force)
         if not tab1 or not tab1:GetChecked() or not WhoFrame:IsVisible() then return end
-        
+
         -- If the user is actively filtering, skip background syncs to avoid resetting the list
         -- while they are trying to find someone. Manual typing still triggers live-updates.
         local query = WhoFrameEditBox:GetText()
         if not force and query and query ~= "" then return end
 
-        Whorkaround_WhoList_Update()
+        if force then
+            -- User-initiated action: redraw right now, cancel any queued deferred redraw
+            syncCoalesceFrame:Hide()
+            syncDirty = false
+            Whorkaround_WhoList_Update()
+        elseif not syncDirty then
+            -- Background update: coalesce into a single redraw on the next frame
+            syncDirty = true
+            syncCoalesceFrame:Show()
+        end
     end
 
     -- Refresh browser immediately when toggling faction colors
@@ -1152,32 +1177,40 @@ function Whorkaround:InitGUI()
     -- Hijack the Refresh/Who button: in browser mode, query the selected player to refresh their DB entry.
     -- Same-faction: goes through the normal Query() pipeline (guild roster → friends list → cache).
     -- Cross-faction: sends a WhorkComm network request to proxies.
-    WhoFrameWhoButton:HookScript("OnClick", function()
-        if not (tab1 and tab1:GetChecked()) then return end
-        local name = WhoFrame.selectedName
-        if not name or name == "" then
-            -- No selection: just refresh the view
-            Whorkaround:SyncBrowser(true)
-            return
-        end
-        local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
-        local d = Whorkaround_DB and Whorkaround_DB[cleanName]
-        local playerFaction = UnitFactionGroup("player") or "Unknown"
-        local targetFaction = d and d.faction
-        if targetFaction and targetFaction ~= playerFaction and targetFaction ~= "Unknown" then
-            -- Cross-faction: request via network proxies
-            local tag = (targetFaction == "Horde") and "H" or "A"
-            if not Whorkaround.networkWaiters[cleanName] then
-                Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = false }
-                Whorkaround.bestNetworkHits[cleanName] = nil
-                Whorkaround:Request(name, tag)
-                print("|cff1abc9cWhorkaround:|r Querying network for |cffffffff" .. name:gsub("^%l", string.upper) .. "|r...")
+    --
+    -- We use SetScript (not HookScript) so the native OnClick — which writes PLEASE_WAIT into the
+    -- edit box and fires a real /who server query — is completely suppressed in browser mode.
+    -- In standard Who mode the captured native handler is called as normal.
+    do
+        local nativeWhoClick = WhoFrameWhoButton:GetScript("OnClick")
+        WhoFrameWhoButton:SetScript("OnClick", function(self, button)
+            if not (tab1 and tab1:GetChecked()) then
+                if nativeWhoClick then nativeWhoClick(self, button) end
+                return
             end
-        else
-            -- Same-faction (or unknown): use normal query pipeline
-            Whorkaround:Query(name)
-        end
-    end)
+            -- Browser mode: our logic only, native suppressed
+            local name = WhoFrame.selectedName
+            if not name or name == "" then
+                Whorkaround:SyncBrowser(true)
+                return
+            end
+            local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+            local d = Whorkaround_DB and Whorkaround_DB[cleanName]
+            local playerFaction = UnitFactionGroup("player") or "Unknown"
+            local targetFaction = d and d.faction
+            if targetFaction and targetFaction ~= playerFaction and targetFaction ~= "Unknown" then
+                local tag = (targetFaction == "Horde") and "H" or "A"
+                if not Whorkaround.networkWaiters[cleanName] then
+                    Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = false }
+                    Whorkaround.bestNetworkHits[cleanName] = nil
+                    Whorkaround:Request(name, tag)
+                    print("|cff1abc9cWhorkaround:|r Querying network for |cffffffff" .. name:gsub("^%l", string.upper) .. "|r...")
+                end
+            else
+                Whorkaround:Query(name)
+            end
+        end)
+    end
 
     WhoFrame:HookScript("OnUpdate", function(self)
         if not tab2 or not tab2:GetChecked() then return end

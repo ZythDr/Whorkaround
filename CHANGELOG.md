@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3] - 2026-05-03
+
+### New
+- **Guild Roster Scanner:** On login, the addon now quietly scans your guild roster and populates the DB with class and level for recently-active members. Offline members who haven't been online within your configured "Purge after" window are skipped, so inactive players don't get recycled back into the DB. When a guildmate logs in or out mid-session, it re-scans to keep zone and last-seen data fresh. Throttled to 5 entries per frame so large guilds cause no stutter.
+- **Nameplate Scanner:** Passively reads visible nameplates to pick up player data you'd otherwise only get by mousing over them. Runs on a 0.1s tick, processes one nameplate per tick, so it should have no percievable performance impact. For enemy players it decodes class from the health bar colour (same method ElvUI uses). For group members it uses the unit token directly. Friendly strangers get name, level, and faction but no class — that still requires a mouseover or combat log event. Players are re-scanned at most once every 30 seconds.
+
+### Fixed
+- ElvUI class lookups were writing player names with original capitalisation as DB keys (e.g. `"Blame"`) instead of lowercase, causing duplicate rows in the browser (e.g. "Blame" appearing twice). Fixed. A one-time DB migration on load will merge any existing duplicates, keeping whichever entry is newer.
+- Clicking Refresh too quickly could temporarily blank the browser list with "0 People Found" because Blizzard injects "- Please Wait -" into the search box while a server query is in-flight. The browser now ignores that string and keeps the current list visible.
+- Typing `[Name]` or `@Name` in chat was firing a network pre-query on every keystroke if the name wasn't in the DB yet, causing repeated `WKR:H:name` channel messages. Now queries at most once per name per time the chat box is open.
+
+### Improved
+- Background scanner updates (combat log, tooltip, guild scan) no longer trigger an immediate browser redraw each time. They now coalesce into a single redraw on the next game frame, so a burst of 10 scanner hits only redraws the list once.
+- Tooltip re-scans of the same player are now gated to once every 30 seconds per player.
+- Browser redraws are skipped entirely when the WhoFrame is closed — the DB still updates silently in the background.
+
 ## [1.5.2] - 2026-05-02
 
 ### Fixed
