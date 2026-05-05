@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.4] - 2026-05-05
+
+### New
+- **Public API:** Added `WhorkaroundAPI` for companion addons — `Query`, `Refresh`, and `GetEntry` to interact with the DB without touching internals.
+
+### Fixed
+- Silent background queries (mention pre-queries, etc.) now give up cleanly after the network timeout instead of retrying indefinitely.
+
 ## [1.5.3] - 2026-05-03
 
 ### New

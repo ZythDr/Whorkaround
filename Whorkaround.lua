@@ -1,5 +1,58 @@
 local addonName, Whorkaround = ...
 
+local publicAPI = _G.WhorkaroundAPI or {}
+_G.WhorkaroundAPI = publicAPI
+
+local function NormalizeApiName(name)
+    if type(name) ~= "string" then return nil end
+    name = name:lower():gsub("^%s*(.-)%s*$", "%1")
+    if name == "" then return nil end
+    return name
+end
+
+function publicAPI.Query(name, silent)
+    return Whorkaround:Query(name, silent)
+end
+
+function publicAPI.Refresh(name, silent)
+    local key = NormalizeApiName(name)
+    if not key then return end
+
+    local entry = Whorkaround_DB and Whorkaround_DB[key]
+    local playerFaction = UnitFactionGroup("player") or "Unknown"
+    local targetFaction = entry and entry.faction
+
+    if targetFaction and targetFaction ~= "Unknown" and targetFaction ~= playerFaction and Whorkaround.Request then
+        if not Whorkaround.networkWaiters[key] then
+            local displayName = (entry and entry.name) or name:gsub("^%l", string.upper)
+            local tag = (targetFaction == "Horde") and "H" or "A"
+            Whorkaround.networkWaiters[key] = { startTime = GetTime(), silent = not not silent }
+            Whorkaround.bestNetworkHits[key] = nil
+            Whorkaround:Request(displayName, tag)
+        end
+        return
+    end
+
+    return Whorkaround:Query(name, silent)
+end
+
+function publicAPI.GetEntry(name)
+    local key = NormalizeApiName(name)
+    local entry = key and Whorkaround_DB and Whorkaround_DB[key]
+    if type(entry) ~= "table" then return nil end
+    return {
+        name = entry.name,
+        class = entry.class,
+        level = entry.level,
+        race = entry.race,
+        guild = entry.guild,
+        faction = entry.faction,
+        zone = entry.zone,
+        lastSeen = entry.lastSeen,
+        source = entry.source,
+    }
+end
+
 Whorkaround.pendingQueries = Whorkaround.pendingQueries or {}
 Whorkaround.removingFriends = Whorkaround.removingFriends or {}
 Whorkaround.addedSuppression = Whorkaround.addedSuppression or {}
@@ -627,14 +680,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
             local best = Whorkaround.bestNetworkHits[name]
             if best then
-                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, isSilent and "SILENT" or "WhorkComm",
+                -- Use TIMEOUT_SILENT (not "SILENT") so PrintWhoResult doesn't treat
+                -- this as a new user-search and re-fire another Request.
+                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, isSilent and "TIMEOUT_SILENT" or "WhorkComm",
                     best.faction, best.timestamp)
             else
                 local dbData = Whorkaround_DB and Whorkaround_DB[name]
                 if dbData then
-                    Whorkaround:PrintWhoResult(name, 0, dbData.class, dbData.zone or "Unknown", false, isSilent and "SILENT" or "TIMEOUT", dbData.faction, dbData.lastSeen)
+                    Whorkaround:PrintWhoResult(name, 0, dbData.class, dbData.zone or "Unknown", false, isSilent and "TIMEOUT_SILENT" or "TIMEOUT", dbData.faction, dbData.lastSeen)
                 else
-                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, isSilent and "SILENT" or "FINAL_TIMEOUT")
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, isSilent and "TIMEOUT_SILENT" or "FINAL_TIMEOUT")
                 end
             end
             Whorkaround.bestNetworkHits[name] = nil
