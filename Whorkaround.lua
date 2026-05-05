@@ -680,14 +680,16 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 
             local best = Whorkaround.bestNetworkHits[name]
             if best then
-                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, isSilent and "SILENT" or "WhorkComm",
+                -- Use TIMEOUT_SILENT (not "SILENT") so PrintWhoResult doesn't treat
+                -- this as a new user-search and re-fire another Request.
+                Whorkaround:PrintWhoResult(name, best.level, best.class, best.zone, best.isLive, isSilent and "TIMEOUT_SILENT" or "WhorkComm",
                     best.faction, best.timestamp)
             else
                 local dbData = Whorkaround_DB and Whorkaround_DB[name]
                 if dbData then
-                    Whorkaround:PrintWhoResult(name, 0, dbData.class, dbData.zone or "Unknown", false, isSilent and "SILENT" or "TIMEOUT", dbData.faction, dbData.lastSeen)
+                    Whorkaround:PrintWhoResult(name, 0, dbData.class, dbData.zone or "Unknown", false, isSilent and "TIMEOUT_SILENT" or "TIMEOUT", dbData.faction, dbData.lastSeen)
                 else
-                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, isSilent and "SILENT" or "FINAL_TIMEOUT")
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, isSilent and "TIMEOUT_SILENT" or "FINAL_TIMEOUT")
                 end
             end
             Whorkaround.bestNetworkHits[name] = nil
