@@ -2,7 +2,7 @@
 ## Title: |cff1abc9cWhorkaround|r
 ## Notes: A "best-effort" workaround addon for Epoch's disabled /who query system.
 ## Author: ZythDr
-## Version: 1.5.4
+## Version: 1.5.5
 ## SavedVariables: Whorkaround_DB, Whorkaround_Settings
 ## OptionalDeps: ElvUI
 
@@ -11,6 +11,7 @@ Debug.lua
 ChatThrottleLib.lua
 Comm.lua
 ElvUI-Compat.lua
+LibWho-Compat.lua
 MentionHyperlinks.lua
 GUI.lua
 Scanner.lua

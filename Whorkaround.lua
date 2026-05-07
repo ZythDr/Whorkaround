@@ -924,10 +924,9 @@ function Whorkaround:Query(name, silent)
         local _, class = UnitClass("player")
         local faction = UnitFactionGroup("player")
         Whorkaround:Log("Self-lookup hit for " .. displayName .. "!", "LOCAL")
-        if not silent then
-            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, "Manual", faction)
-            Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
-        end
+        local source = silent and "SILENT" or "Manual"
+        Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, source, faction)
+        Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
         return
     end
 
@@ -939,10 +938,9 @@ function Whorkaround:Query(name, silent)
             local level = UnitLevel(unit)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
-            if not silent then
-                Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, "Manual", faction, time())
-                Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
-            end
+            local source = silent and "SILENT" or "Manual"
+            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, source, faction, time())
+            Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
             return
         end
     end
@@ -960,9 +958,8 @@ function Whorkaround:Query(name, silent)
     if gLevel and gLevel > 0 then
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
-        if not silent then
-            Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, "GuildRoster", nil, time())
-        end
+        local source = silent and "SILENT" or "GuildRoster"
+        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, nil, time())
         if not isOffline then
             Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
         end
@@ -993,9 +990,8 @@ function Whorkaround:Query(name, silent)
     for i = 1, GetNumFriends() do
         local fName, level, class, area, connected = GetFriendInfo(i)
         if fName and fName:lower() == name then
-            if not silent then
-                Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, "FriendsList", nil, time())
-            end
+            local source = silent and "SILENT" or "FriendsList"
+            Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, source, nil, time())
             if connected then
                 Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), false)
             end

@@ -201,18 +201,10 @@ scannerFrame:SetScript("OnEvent", function(self, event, ...)
                 entry.faction = raceToFaction[englishRace]
             end
 
-            -- Fallback Faction check via Combat Log Flags (Reaction)
-            if not entry.faction and targetFlags then
-                local playerFaction = UnitFactionGroup("player")
-                local isHostile = bit.band(targetFlags, 0x00000040) > 0 -- HOSTILE
-                local isFriendly = bit.band(targetFlags, 0x00000010) > 0 -- FRIENDLY
-                
-                if playerFaction == "Horde" then
-                    if isFriendly then entry.faction = "Horde" elseif isHostile then entry.faction = "Alliance" end
-                elseif playerFaction == "Alliance" then
-                    if isFriendly then entry.faction = "Alliance" elseif isHostile then entry.faction = "Horde" end
-                end
-            end
+            -- Faction Fallback has been removed!
+            -- We CANNOT assume isFriendly means same-faction due to cross-faction groups on Epoch.
+            -- We CANNOT assume isHostile means enemy-faction due to duels and FFA PvP zones.
+            -- We will simply wait for their race data to load, or for a mouseover/target interaction.
 
             -- Debug logging (Verbose only for saves)
             if Whorkaround_Settings.debug and debugLevel >= 2 then
@@ -506,6 +498,7 @@ local function OnNameplateShow(plate)
         if groupUnit and UnitExists(groupUnit) and UnitName(groupUnit) == name then
             local _, cls = UnitClass(groupUnit)
             class = cls
+            entry.faction = entry.faction or UnitFactionGroup(groupUnit)
         end
         if not class then
             -- Not in group and no unit token available — friendly stranger class
@@ -516,20 +509,19 @@ local function OnNameplateShow(plate)
             if UnitIsPlayer("mouseover") and UnitName("mouseover") == name then
                 local _, cls = UnitClass("mouseover")
                 class = cls
+                entry.faction = entry.faction or UnitFactionGroup("mouseover")
             end
         end
-        entry.faction = entry.faction or UnitFactionGroup("player")  -- friendly = same faction as us
+        -- We no longer assume entry.faction = UnitFactionGroup("player") here
+        -- because cross-faction groups on Epoch mean friendly players can be Horde/Alliance.
     else
         -- Enemy: decode class from green channel of health bar
         local gRounded = floor(g * 100 + 0.5) / 100
         class = npGreenToClass[gRounded]
-        -- Faction: hostile = opposite of player's faction (valid on Epoch — enemy nameplates
-        -- are never cross-faction friendly)
-        if not entry.faction then
-            local pf = UnitFactionGroup("player")
-            if pf == "Horde" then entry.faction = "Alliance"
-            elseif pf == "Alliance" then entry.faction = "Horde" end
-        end
+        -- We CANNOT assume hostile means opposite faction, because same-faction
+        -- players can be hostile during duels or in FFA PvP arenas.
+        -- Therefore, we leave entry.faction as nil/unknown until we get better data
+        -- (e.g. from mouseover/target updating the race).
     end
 
     if class and class ~= entry.class then
