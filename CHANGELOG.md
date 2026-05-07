@@ -2,9 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.4] - 2026-05-05
+## [1.5.5] - 2026-05-07
 
-### New
+### Fixed
+- **Silent Queries Dropping Data:** Fixed a bug where background `/who` lookups (like those triggered by WIM or other addons using `silent=true`) were skipping the database save phase if the player was found instantly (e.g. already on your friends list). Background lookups now properly and silently update the database cache.
+- **Cross-Faction Scanner Fix:** Ripped out flawed logic in the Nameplate and Combat Log scanners that assumed red/hostile players were always the enemy faction and blue/friendly players were always your faction. This fixes major database corruption issues caused by duels, FFA arenas, or cross-faction groups (like on Project Epoch).
+- **Smart Group Faction Detection:** The nameplate scanner now checks if a friendly player is in your party or raid group to accurately extract their true faction via group unit tokens, instead of guessing based on their healthbar color.
+
+## [1.5.4] - 2026-05-05
 - **Public API:** Added `WhorkaroundAPI` for companion addons — `Query`, `Refresh`, and `GetEntry` to interact with the DB without touching internals.
 
 ### Fixed
