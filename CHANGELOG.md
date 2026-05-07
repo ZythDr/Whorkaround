@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.5.5] - 2026-05-07
 
 ### New
-- **Native WIM / LibWho Support:** Merged the experimental LibWho bridge directly into the core addon! Whorkaround will now natively intercept background `/who` lookups requested by addons like WIM (Whisper Instant Messenger), seamlessly feeding them live, corrected player data from the local database. If WIM doesn't know a player's exact race, it now smartly falls back to displaying their faction (Alliance/Horde) instead of leaving it blank. It "just works" right out of the box with zero configuration!
+- **Native WIM / LibWho Support:** Merged the experimental LibWho bridge directly into the core addon! Whorkaround will now natively intercept background `/who` lookups requested by addons like WIM (WoW Instant Messenger), seamlessly feeding them live, corrected player data from the local database. If WIM doesn't know a player's exact race, it now smartly falls back to displaying their faction (Alliance/Horde) instead of leaving it blank. It "just works" right out of the box with zero configuration!
 
 ### Fixed
 - **Silent Queries Dropping Data:** Fixed a bug where background `/who` lookups (like those triggered by WIM or other addons using `silent=true`) were skipping the database save phase if the player was found instantly (e.g. already on your friends list). Background lookups now properly and silently update the database cache.
