@@ -437,6 +437,7 @@ local function OnNameplateShow(plate)
     local nameRegion = select(7, plate:GetRegions())
 
     if not healthBar or not nameRegion then return end
+    if nameRegion:GetObjectType() ~= "FontString" then return end
 
     local name = nameRegion:GetText()
     if not name or name == "" then return end
