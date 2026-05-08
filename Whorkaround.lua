@@ -537,6 +537,7 @@ function Whorkaround:CleanGhostFriends()
             
             if hasNote or isTemp then
                 Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
+                Whorkaround.removingFriends[cleanName] = GetTime()
                 RemoveFriend(i)
                 cleaned = cleaned + 1
             end
@@ -870,6 +871,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if Whorkaround_DB and Whorkaround_DB.tempFriends then
             local purged = 0
             for tempName in pairs(Whorkaround_DB.tempFriends) do
+                local cleanName = tempName:lower():gsub("^%s*(.-)%s*$", "%1")
+                Whorkaround.removingFriends[cleanName] = GetTime()
                 RemoveFriend(tempName)
                 purged = purged + 1
             end
