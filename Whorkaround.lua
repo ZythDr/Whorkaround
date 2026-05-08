@@ -530,10 +530,23 @@ function Whorkaround:CleanGhostFriends()
     local cleaned = 0
     for i = num, 1, -1 do
         local name, _, _, _, _, _, note = GetFriendInfo(i)
-        if note and note:find("^Whorkaround:") then
-            Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
-            RemoveFriend(i)
-            cleaned = cleaned + 1
+        if name then
+            local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+            local hasNote = note and note:find("^Whorkaround:")
+            local isTemp = Whorkaround_DB and Whorkaround_DB.tempFriends and Whorkaround_DB.tempFriends[cleanName]
+            
+            if hasNote or isTemp then
+                Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
+                Whorkaround.removingFriends[cleanName] = GetTime()
+                RemoveFriend(i)
+                cleaned = cleaned + 1
+            end
+        end
+    end
+    -- Clear out any leftover memory flags
+    if Whorkaround_DB and Whorkaround_DB.tempFriends then
+        for k in pairs(Whorkaround_DB.tempFriends) do
+            Whorkaround_DB.tempFriends[k] = nil
         end
     end
     if cleaned > 0 then Whorkaround:Log("Cleanup complete. Removed " .. cleaned .. " temporary friends.", "CLEANUP") end
@@ -624,6 +637,7 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("FRIENDLIST_UPDATE"); frame:RegisterEvent("CHAT_MSG_SYSTEM"); frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT"); frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+frame:RegisterEvent("PLAYER_CAMPING"); frame:RegisterEvent("PLAYER_QUITING"); frame:RegisterEvent("PLAYER_LOGOUT")
 
 -- Recyclable tables for ticker to reduce garbage buildup
 local expiredQueries = {}
@@ -649,7 +663,8 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
                 Whorkaround.pendingQueries[name] = "TIMEOUT"
                 Whorkaround.removingFriends[name] = GetTime()
-                RemoveFriendByName(name)
+                RemoveFriend(name)
+                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[name] = nil end
             end
             
             if diff > 5 then
@@ -755,6 +770,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if Whorkaround_Settings.mentionHyperlinks == nil then Whorkaround_Settings.mentionHyperlinks = false end
 
             Whorkaround_DB = Whorkaround_DB or {}
+            Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
 
             -- DB MIGRATION: Convert all keys to lowercase and PURGE invalid classes
             -- Only run once (guarded by version flag)
@@ -815,10 +831,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
                                 Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
                                 -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
                                 Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
                                 Whorkaround.pendingQueries[cleanName] = nil
                             else
                                 Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
-                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i); Whorkaround.pendingQueries[cleanName] = nil
+                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
+                                Whorkaround.pendingQueries[cleanName] = nil
                             end
                         elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
                             if connected then
@@ -828,6 +847,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                                 Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
                                 Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
                                 Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
                                 Whorkaround.pendingQueries[cleanName] = nil
                             else
                                 local qSource = Whorkaround.pendingQueries[cleanName]
@@ -836,11 +856,32 @@ frame:SetScript("OnEvent", function(self, event, ...)
                                 Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
                                 Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
                                 Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
+                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
                             end
                         end
                     end
                 end
             end
+        end
+    elseif event == "PLAYER_CAMPING" or event == "PLAYER_QUITING" then
+        Whorkaround.isLoggingOut = true
+        Whorkaround:Log("Logout sequence initiated. Blocking new queries.", "SYSTEM")
+    elseif event == "PLAYER_LOGOUT" then
+        -- EMERGENCY PURGE: Absolute last millisecond before game closes
+        if Whorkaround_DB and Whorkaround_DB.tempFriends then
+            local purged = 0
+            for tempName in pairs(Whorkaround_DB.tempFriends) do
+                local cleanName = tempName:lower():gsub("^%s*(.-)%s*$", "%1")
+                Whorkaround.removingFriends[cleanName] = GetTime()
+                RemoveFriend(tempName)
+                purged = purged + 1
+            end
+            if purged > 0 then
+                Whorkaround:Log("EMERGENCY PURGE: Removed " .. purged .. " temporary friends on logout.", "CLEANUP")
+            end
+            -- We intentionally DO NOT wipe tempFriends here. If the RemoveFriend packet
+            -- fails to reach the server because we are disconnecting, the names will remain 
+            -- in tempFriends and be cleaned up flawlessly on the next login!
         end
     end
 end)
@@ -848,6 +889,7 @@ end)
 C_Timer.NewTicker(60, function() Whorkaround:CleanGhostFriends() end)
 
 function Whorkaround:ProxyQuery(name)
+    if Whorkaround.isLoggingOut then return end
     if not name or name == "" or GetNumFriends() >= 100 then return end
     name = name:lower():gsub("^%s*(.-)%s*$", "%1") -- Clean key
     if Whorkaround.pendingQueries[name] or Whorkaround.networkWaiters[name] then return end
@@ -903,14 +945,16 @@ function Whorkaround:ProxyQuery(name)
     end
 
     if not alreadyFriend then
+        Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
+        Whorkaround_DB.tempFriends[name] = true
         AddFriend(displayName)
-        SetFriendNoteByName(displayName, "Whorkaround:Tag")
     else
         Whorkaround:Log("ProxyQuery: " .. displayName .. " is already on friends list. Skipping AddFriend.", "PROXY")
     end
 end
 
 function Whorkaround:Query(name, silent)
+    if Whorkaround.isLoggingOut then return end
     if not name or name == "" then return end
     name = name:lower():gsub("^%s*(.-)%s*$", "%1") -- Clean key
     if Whorkaround.pendingQueries[name] or Whorkaround.networkWaiters[name] then return end
@@ -1004,8 +1048,10 @@ function Whorkaround:Query(name, silent)
     end
     Whorkaround:Log("Starting Friends-List lookup for " .. displayName, "LOCAL")
     Whorkaround.lastActionTime = GetTime()
-    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); AddFriend(
-    displayName)
+    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime()
+    Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
+    Whorkaround_DB.tempFriends[name] = true
+    AddFriend(displayName)
 end
 
 function Whorkaround:Find(query)
