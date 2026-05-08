@@ -876,10 +876,9 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if purged > 0 then
                 Whorkaround:Log("EMERGENCY PURGE: Removed " .. purged .. " temporary friends on logout.", "CLEANUP")
             end
-            -- The table will be saved to disk clean
-            for k in pairs(Whorkaround_DB.tempFriends) do
-                Whorkaround_DB.tempFriends[k] = nil
-            end
+            -- We intentionally DO NOT wipe tempFriends here. If the RemoveFriend packet
+            -- fails to reach the server because we are disconnecting, the names will remain 
+            -- in tempFriends and be cleaned up flawlessly on the next login!
         end
     end
 end)
