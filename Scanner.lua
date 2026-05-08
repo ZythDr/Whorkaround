@@ -434,13 +434,32 @@ local function OnNameplateShow(plate)
     -- ElvUI's OnCreated enumerates regions as:
     -- 1=Threat, 2=Border, 3=CastBarBorder, 4=CastBarShield, 5=CastBarIcon,
     -- 6=Highlight, 7=Name, 8=Level, 9=BossIcon, 10=RaidIcon, 11=EliteIcon
-    local nameRegion = select(7, plate:GetRegions())
+    local name
+    -- 1. Try native index 7
+    local reg7 = select(7, plate:GetRegions())
+    if reg7 and reg7:GetObjectType() == "FontString" then
+        name = reg7:GetText()
+    end
+    -- 2. Try addon-injected .name or .oldName (Kui Nameplates, etc.)
+    if (not name or name == "") and plate.name and type(plate.name.GetObjectType) == "function" and plate.name:GetObjectType() == "FontString" then
+        name = plate.name:GetText()
+    end
+    if (not name or name == "") and plate.oldName and type(plate.oldName.GetObjectType) == "function" and plate.oldName:GetObjectType() == "FontString" then
+        name = plate.oldName:GetText()
+    end
+    -- 3. Brute force fallback
+    if not name or name == "" then
+        for _, r in ipairs({plate:GetRegions()}) do
+            if r:GetObjectType() == "FontString" then
+                local text = r:GetText()
+                if text and text ~= "" and not tonumber(text) and text ~= "??" and text ~= "Boss" then
+                    name = text
+                    break
+                end
+            end
+        end
+    end
 
-    if not healthBar or not nameRegion then return end
-    if nameRegion:GetObjectType() ~= "FontString" then return end
-    if healthBar:GetObjectType() ~= "StatusBar" then return end
-
-    local name = nameRegion:GetText()
     if not name or name == "" then return end
     -- Strip cross-realm suffix (e.g. "-RealmName")
     name = name:match("^([^%-]+)") or name
@@ -450,6 +469,7 @@ local function OnNameplateShow(plate)
     if npSessionSeen[name] and (now - npSessionSeen[name]) < NP_SEEN_COOLDOWN then return end
 
     -- Determine unit type from health bar color (ElvUI's GetUnitInfo logic)
+    if not healthBar or healthBar:GetObjectType() ~= "StatusBar" then return end
     local r, g, b = healthBar:GetStatusBarColor()
     local isPlayer, isFriendly
     if r < 0.01 and b > 0.99 and g < 0.01 then
@@ -485,12 +505,16 @@ local function OnNameplateShow(plate)
     entry.lastSeen = time()
     entry.source   = entry.source or "Nameplate"
 
-    -- Level is region 8
+    -- Level detection (robust)
     local levelRegion = select(8, plate:GetRegions())
+    local lvl
     if levelRegion and levelRegion:GetObjectType() == "FontString" then
-        local lvl = tonumber(levelRegion:GetText())
-        if lvl and lvl > 0 then entry.level = lvl end
+        lvl = tonumber(levelRegion:GetText())
     end
+    if not lvl and plate.level and type(plate.level.GetObjectType) == "function" and plate.level:GetObjectType() == "FontString" then
+        lvl = tonumber(plate.level:GetText())
+    end
+    if lvl and lvl > 0 then entry.level = lvl end
 
     -- Class detection
     local class
