@@ -6,10 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Ghost Friend Cleanup:** Temporary friends are now tracked in a local database so if your game crashes or disconnects before a query finishes, it will still clean them up on your next login.  
+- **Ghost Friend Cleanup:** Temporary friends are now tracked in a local database, so if you log out or close the game before a query finishes, it should still clean them up on your next login. In case of a crash/disconnect, it should instead catch friends added by Whorkaround through a `Whorkaround:tag` note on any friends it adds.
 - **Emergency Purge:** Whorkaround now instantly blocks all new queries if it sees a 20-second logout timer, and attempts to wipe all temporary friends right as the game closes.  
 - **Chat Spam Fix:** Fixed an edge-case where aborted proxy queries (like when someone else answers the request first) would end up printing "removed from friends list" to chat.  
-- **Nameplate Scanner Improvements:** Added strict type-checking and a 3-step fallback system to the Nameplate scanner. This should fix Lua crashes and errors when Nameplate addons (like Kui Nameplates) heavily modify or delete default nameplate elements. (Fixes [#2](https://github.com/ZythDr/Whorkaround/issues/2))  
+- **Nameplate Scanner Improvements:** Added strict type-checking and a 3-step fallback system to the Nameplate scanner. This should fix Lua crashes and errors when Nameplate addons (like Kui Nameplates) heavily modify or delete default nameplate elements. (Should fix [#2](https://github.com/ZythDr/Whorkaround/issues/2))  
 
 ## [1.5.5] - 2026-05-07
 
