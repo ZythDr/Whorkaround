@@ -61,6 +61,8 @@ Whorkaround.bestNetworkHits = Whorkaround.bestNetworkHits or {}
 Whorkaround.queryThrottle = Whorkaround.queryThrottle or {}
 Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
 Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
+-- Handshake state machine per player: "ADD" -> "TAG" -> "REMOVE" -> nil
+Whorkaround.friendState = Whorkaround.friendState or {}
 
 
 
@@ -534,22 +536,19 @@ function Whorkaround:CleanGhostFriends()
             local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
             local hasNote = note and note:find("^Whorkaround:")
             local isTemp = Whorkaround_DB and Whorkaround_DB.tempFriends and Whorkaround_DB.tempFriends[cleanName]
-            
+
             if hasNote or isTemp then
                 Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
                 Whorkaround.removingFriends[cleanName] = GetTime()
+                -- Handshake: set REMOVE state so FRIENDLIST_UPDATE confirms removal before wiping tempFriends
+                Whorkaround.friendState[cleanName] = "REMOVE"
                 RemoveFriend(i)
                 cleaned = cleaned + 1
             end
         end
     end
-    -- Clear out any leftover memory flags
-    if Whorkaround_DB and Whorkaround_DB.tempFriends then
-        for k in pairs(Whorkaround_DB.tempFriends) do
-            Whorkaround_DB.tempFriends[k] = nil
-        end
-    end
-    if cleaned > 0 then Whorkaround:Log("Cleanup complete. Removed " .. cleaned .. " temporary friends.", "CLEANUP") end
+    -- NOTE: tempFriends is NOT wiped here. FRIENDLIST_UPDATE will confirm each removal individually.
+    if cleaned > 0 then Whorkaround:Log("Ghost cleanup initiated for " .. cleaned .. " friends. Awaiting FRIENDLIST_UPDATE confirmation.", "CLEANUP") end
 end
 
 -- Automatic Database Pruning
@@ -663,8 +662,9 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                 Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
                 Whorkaround.pendingQueries[name] = "TIMEOUT"
                 Whorkaround.removingFriends[name] = GetTime()
+                -- Handshake: set REMOVE state; FRIENDLIST_UPDATE will confirm removal before wiping tempFriends
+                Whorkaround.friendState[name] = "REMOVE"
                 RemoveFriend(name)
-                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[name] = nil end
             end
             
             if diff > 5 then
@@ -804,63 +804,86 @@ frame:SetScript("OnEvent", function(self, event, ...)
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "FRIENDLIST_UPDATE" then
-        local processed = {}
-        for i = GetNumFriends(), 1, -1 do
-            local name, level, class, area, connected, _, note = GetFriendInfo(i)
-            if name then
-                local displayName = name:gsub("^%l", string.upper)
-                local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        -- ============================================================
+        -- HANDSHAKE STATE MACHINE: ADD -> TAG -> REMOVE -> done
+        -- Each step only proceeds when the previous is server-confirmed.
+        -- ============================================================
 
-                if Whorkaround.pendingQueries[cleanName] and not processed[cleanName] then
-                    processed[cleanName] = true
-                    if not note or note == "" then
-                        Whorkaround:Log("Tagging friend: " .. name, "LOCAL")
-                        SetFriendNotes(i, NOTE_ID)
+        -- Build a snapshot of who is currently on the friends list for O(1) lookup
+        local currentFriends = {}
+        for i = 1, GetNumFriends() do
+            local fName, fLevel, fClass, fArea, fConnected, _, fNote = GetFriendInfo(i)
+            if fName then
+                local fClean = fName:lower():gsub("^%s*(.-)%s*$", "%1")
+                currentFriends[fClean] = { index=i, name=fName, level=fLevel, class=fClass, area=fArea, connected=fConnected, note=fNote }
+            end
+        end
+
+        -- PASS 1: ADD -> TAG
+        -- Player appeared on friends list. Apply note and advance state.
+        -- Do nothing else yet - wait for the next FRIENDLIST_UPDATE (fired by SetFriendNotes) to confirm.
+        for qName, qType in pairs(Whorkaround.pendingQueries) do
+            if Whorkaround.friendState[qName] == "ADD" then
+                local friend = currentFriends[qName]
+                if friend then
+                    if not friend.note or friend.note == "" then
+                        Whorkaround:Log("Tagging friend: " .. friend.name, "LOCAL")
+                        SetFriendNotes(friend.index, NOTE_ID) -- fires another FRIENDLIST_UPDATE
                     end
-                    
-                    if Whorkaround.pendingQueries[cleanName] then
-                        if Whorkaround.pendingQueries[cleanName] == "PROXY" then
-                            if connected then
-                                local faction = (Whorkaround_DB and Whorkaround_DB[cleanName] and Whorkaround_DB[cleanName].faction) or
-                                "Unknown"
-                                Whorkaround:Log("Proxy hit! Sending broadcast for " .. name, "PROXY")
-    
-                                -- DE-DUPLICATION: Cancel any pending cached response schedule
-                                if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
-    
-                                Whorkaround:Broadcast(name, level, class, area, faction, time(), true)
-                                -- Removed PrintWhoResult to keep proxy lookups silent for the proxying user
-                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
-                                Whorkaround.pendingQueries[cleanName] = nil
-                            else
-                                Whorkaround:Log("Proxy check: " .. name .. " is offline/enemy.", "PROXY")
-                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
-                                Whorkaround.pendingQueries[cleanName] = nil
-                            end
-                        elseif Whorkaround.pendingQueries[cleanName] ~= "TIMEOUT" then
-                            if connected then
-                                local qSource = Whorkaround.pendingQueries[cleanName]
-                                local finalSource = (type(qSource) == "number") and "FriendsList" or qSource
-                                Whorkaround:Log("Manual query success: " .. name, "LOCAL")
-                                Whorkaround:PrintWhoResult(name, level, class, area, true, finalSource, nil, time())
-                                Whorkaround:Broadcast(name, level, class, area, UnitFactionGroup("player"), time(), false)
-                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
-                                Whorkaround.pendingQueries[cleanName] = nil
-                            else
-                                local qSource = Whorkaround.pendingQueries[cleanName]
-                                local finalSource = (type(qSource) == "string") and qSource or "Manual"
-                                Whorkaround.pendingQueries[cleanName] = nil -- Clear FIRST
-                                Whorkaround:Log("Manual query failed (offline): " .. name, "LOCAL")
-                                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
-                                Whorkaround.removingFriends[cleanName] = GetTime(); RemoveFriend(i)
-                                if Whorkaround_DB and Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends[cleanName] = nil end
-                            end
+                    -- Advance to TAG regardless - if note was already set, next pass handles it
+                    Whorkaround.friendState[qName] = "TAG"
+                end
+            end
+        end
+
+        -- PASS 2: TAG -> REMOVE
+        -- Note is confirmed on the player. Now read info, process result, call RemoveFriend.
+        for qName, qType in pairs(Whorkaround.pendingQueries) do
+            if Whorkaround.friendState[qName] == "TAG" then
+                local friend = currentFriends[qName]
+                if friend and friend.note and friend.note:find("^Whorkaround:") then
+                    -- Note confirmed! Safe to read info and remove.
+                    if qType == "PROXY" then
+                        if friend.connected then
+                            local faction = (Whorkaround_DB and Whorkaround_DB[qName] and Whorkaround_DB[qName].faction) or "Unknown"
+                            Whorkaround:Log("Proxy hit! Sending broadcast for " .. friend.name, "PROXY")
+                            if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(friend.name) end
+                            Whorkaround:Broadcast(friend.name, friend.level, friend.class, friend.area, faction, time(), true)
+                        else
+                            Whorkaround:Log("Proxy check: " .. friend.name .. " is offline/enemy.", "PROXY")
+                        end
+                    elseif qType ~= "TIMEOUT" then
+                        if friend.connected then
+                            local finalSource = (type(qType) == "number") and "FriendsList" or qType
+                            Whorkaround:Log("Manual query success: " .. friend.name, "LOCAL")
+                            Whorkaround:PrintWhoResult(friend.name, friend.level, friend.class, friend.area, true, finalSource, nil, time())
+                            Whorkaround:Broadcast(friend.name, friend.level, friend.class, friend.area, UnitFactionGroup("player"), time(), false)
+                        else
+                            local finalSource = (type(qType) == "string") and qType or "Manual"
+                            Whorkaround:Log("Manual query failed (offline): " .. friend.name, "LOCAL")
+                            Whorkaround:PrintWhoResult(friend.name, nil, nil, nil, false, finalSource)
                         end
                     end
+                    -- Give "go" to removal step
+                    Whorkaround.removingFriends[qName] = GetTime()
+                    Whorkaround.friendState[qName] = "REMOVE"
+                    Whorkaround.pendingQueries[qName] = nil
+                    RemoveFriend(friend.index) -- fires another FRIENDLIST_UPDATE
                 end
+            end
+        end
+
+        -- PASS 3: REMOVE -> done
+        -- Covers both normal queries AND ghost cleanup (CleanGhostFriends sets REMOVE state too).
+        -- Only wipe tempFriends once server confirms the player is gone from the list.
+        for sName, state in pairs(Whorkaround.friendState) do
+            if state == "REMOVE" and not currentFriends[sName] then
+                -- Server confirmed removal. Safe to wipe tempFriends.
+                if Whorkaround_DB and Whorkaround_DB.tempFriends then
+                    Whorkaround_DB.tempFriends[sName] = nil
+                end
+                Whorkaround.friendState[sName] = nil
+                Whorkaround:Log("Handshake complete: " .. sName .. " confirmed removed from friends list.", "CLEANUP")
             end
         end
     elseif event == "PLAYER_CAMPING" or event == "PLAYER_QUITING" then
@@ -934,7 +957,7 @@ function Whorkaround:ProxyQuery(name)
 
     Whorkaround:Log("Starting Friends-List Proxy lookup for " .. displayName, "PROXY")
     Whorkaround.lastActionTime = GetTime()
-    Whorkaround.pendingQueries[name] = "PROXY"; Whorkaround.addedSuppression[name] = GetTime()
+    Whorkaround.pendingQueries[name] = "PROXY"; Whorkaround.addedSuppression[name] = GetTime(); Whorkaround.friendState[name] = "ADD"
     -- Safety: Check if already a friend before adding
     local alreadyFriend = false
     for i = 1, GetNumFriends() do
@@ -1048,7 +1071,7 @@ function Whorkaround:Query(name, silent)
     end
     Whorkaround:Log("Starting Friends-List lookup for " .. displayName, "LOCAL")
     Whorkaround.lastActionTime = GetTime()
-    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime()
+    Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); Whorkaround.friendState[name] = "ADD"
     Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
     Whorkaround_DB.tempFriends[name] = true
     AddFriend(displayName)
