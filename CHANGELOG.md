@@ -2,12 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.8] - Upcoming
+
+### Changed
+
+- **Emergency Purge Removed:** Removed the experimental `PLAYER_LOGOUT` emergency cleanup that attempted to purge temp friends at the exact millisecond of logging out, as this was suspected of causing client crashes. Normal cleanup upon logging back in handles this safely anyway.
+
 ## [1.5.7] - 2026-05-13
 
 ### Fixed
 
 - **Friend Cleanup Reliability:** Completely rewrote the friends list management as a strict step-by-step handshake. Each phase (add → tag → read info → remove → confirm gone) now has to explicitly "give the go" to the next step, driven by server-confirmed `FRIENDLIST_UPDATE` events. `tempFriends` is now only ever cleared once the server confirms the player is no longer on your friends list — not speculatively. This should eliminate any remaining ghost friend scenarios.
-- **Emergency Purge Removed:** Removed the experimental `PLAYER_LOGOUT` emergency cleanup that attempted to purge temp friends at the exact millisecond of logging out, as this was suspected of causing client crashes. Normal cleanup upon logging back in handles this safely anyway.
 
 ## [1.5.6] - 2026-05-09
 
