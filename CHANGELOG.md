@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.6] - Upcoming
+## [1.5.7] - Upcoming
+
+### Fixed
+
+- **Friend Cleanup Reliability:** Completely rewrote the friends list management as a strict step-by-step handshake. Each phase (add → tag → read info → remove → confirm gone) now has to explicitly "give the go" to the next step, driven by server-confirmed `FRIENDLIST_UPDATE` events. `tempFriends` is now only ever cleared once the server confirms the player is no longer on your friends list — not speculatively. This should eliminate any remaining ghost friend scenarios.
+
+## [1.5.6] - 2026-05-09
 
 ### Fixed
 
