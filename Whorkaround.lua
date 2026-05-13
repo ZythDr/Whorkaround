@@ -636,7 +636,7 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", SystemMessageFilter)
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("FRIENDLIST_UPDATE"); frame:RegisterEvent("CHAT_MSG_SYSTEM"); frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT"); frame:RegisterEvent("PLAYER_TARGET_CHANGED")
-frame:RegisterEvent("PLAYER_CAMPING"); frame:RegisterEvent("PLAYER_QUITING"); frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("PLAYER_CAMPING"); frame:RegisterEvent("PLAYER_QUITING")
 
 -- Recyclable tables for ticker to reduce garbage buildup
 local expiredQueries = {}
@@ -889,23 +889,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_CAMPING" or event == "PLAYER_QUITING" then
         Whorkaround.isLoggingOut = true
         Whorkaround:Log("Logout sequence initiated. Blocking new queries.", "SYSTEM")
-    elseif event == "PLAYER_LOGOUT" then
-        -- EMERGENCY PURGE: Absolute last millisecond before game closes
-        if Whorkaround_DB and Whorkaround_DB.tempFriends then
-            local purged = 0
-            for tempName in pairs(Whorkaround_DB.tempFriends) do
-                local cleanName = tempName:lower():gsub("^%s*(.-)%s*$", "%1")
-                Whorkaround.removingFriends[cleanName] = GetTime()
-                RemoveFriend(tempName)
-                purged = purged + 1
-            end
-            if purged > 0 then
-                Whorkaround:Log("EMERGENCY PURGE: Removed " .. purged .. " temporary friends on logout.", "CLEANUP")
-            end
-            -- We intentionally DO NOT wipe tempFriends here. If the RemoveFriend packet
-            -- fails to reach the server because we are disconnecting, the names will remain 
-            -- in tempFriends and be cleaned up flawlessly on the next login!
-        end
     end
 end)
 
