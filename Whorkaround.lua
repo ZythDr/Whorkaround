@@ -63,6 +63,34 @@ Whorkaround.broadcastThrottle = Whorkaround.broadcastThrottle or {}
 Whorkaround.sightingThrottle = Whorkaround.sightingThrottle or {}
 -- Handshake state machine per player: "ADD" -> "TAG" -> "REMOVE" -> nil
 Whorkaround.friendState = Whorkaround.friendState or {}
+Whorkaround.discoveryQueue = Whorkaround.discoveryQueue or {}
+
+local discoveryTimer = 0
+local discoveryFrame = CreateFrame("Frame")
+discoveryFrame:SetScript("OnUpdate", function(self, elapsed)
+    if not Whorkaround_Settings or not Whorkaround_Settings.enableScanner then return end
+    discoveryTimer = discoveryTimer + elapsed
+    if discoveryTimer > 2 then
+        discoveryTimer = 0
+        if #Whorkaround.discoveryQueue > 0 then
+            local name = table.remove(Whorkaround.discoveryQueue, 1)
+            local cached = Whorkaround_DB and Whorkaround_DB[name]
+            -- Only query if we still don't know the faction
+            if cached and (not cached.faction or cached.faction == "Unknown") then
+                Whorkaround:Query(name, true)
+            end
+        end
+    end
+end)
+
+function Whorkaround:QueueFactionDiscovery(name)
+    if not name then return end
+    local lName = name:lower()
+    for _, v in ipairs(Whorkaround.discoveryQueue) do
+        if v == lName then return end
+    end
+    table.insert(Whorkaround.discoveryQueue, lName)
+end
 
 
 
@@ -659,7 +687,21 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             
             if diff > 1.0 and qSource ~= "TIMEOUT" and qSource ~= "PROXY" then
                 local finalSource = (type(qSource) == "string") and qSource or "Manual"
-                Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
+                
+                local cached = Whorkaround_DB and Whorkaround_DB[name]
+                if cached and type(cached.level) == "number" and cached.level > 0 and (now - (cached.lastSeen or 0) < 60) then
+                    local oppositeFaction = (UnitFactionGroup("player") == "Alliance") and "Horde" or "Alliance"
+                    -- Update DB with the newly discovered faction
+                    cached.faction = oppositeFaction
+                    Whorkaround:PrintWhoResult(name, cached.level, cached.class, cached.zone, true, finalSource, oppositeFaction, cached.lastSeen)
+                    -- Manual query needs a broadcast since PrintWhoResult only broadcasts fresh local lookups if told
+                    if finalSource ~= "SILENT" and finalSource ~= "GuildRoster" then
+                        Whorkaround:Broadcast(name, cached.level, cached.class, cached.zone, oppositeFaction, cached.lastSeen, false)
+                    end
+                else
+                    Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
+                end
+                
                 Whorkaround.pendingQueries[name] = "TIMEOUT"
                 Whorkaround.removingFriends[name] = GetTime()
                 -- Handshake: set REMOVE state; FRIENDLIST_UPDATE will confirm removal before wiping tempFriends
@@ -922,13 +964,14 @@ function Whorkaround:ProxyQuery(name)
     -- NEW: Check Guild/Cache for INSTANT proxy response
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
+    local cachedFaction = cached and cached.faction and cached.faction ~= "Unknown" and cached.faction or nil
 
-    if (gLevel and gLevel > 0) or (cached and type(cached.level) == "number" and cached.level > 0 and (time() - (cached.lastSeen or 0) < 60)) then
+    if (gLevel and gLevel > 0 and cachedFaction) or (cached and type(cached.level) == "number" and cached.level > 0 and cachedFaction and (time() - (cached.lastSeen or 0) < 60)) then
         Whorkaround:Log("Instant Proxy match for " .. displayName .. "! Broadcasting immediately.", "PROXY")
         local level = gLevel or (type(cached.level) == "number" and cached.level > 0 and cached.level)
         local class = gClass or cached.class
         local zone = gZone or cached.zone
-        local faction = (cached and cached.faction) or UnitFactionGroup("player")
+        local faction = cachedFaction
         local timestamp = (gLevel and gLevel > 0) and time() or cached.lastSeen
 
         -- DE-DUPLICATION: Cancel any pending cached response schedule
@@ -1005,13 +1048,15 @@ function Whorkaround:Query(name, silent)
 
     -- NEW: Check Guild Roster FIRST (Live info)
     local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
-    if gLevel and gLevel > 0 then
+    local cachedFaction = (Whorkaround_DB and Whorkaround_DB[name] and Whorkaround_DB[name].faction)
+    
+    if gLevel and gLevel > 0 and cachedFaction and cachedFaction ~= "Unknown" then
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
         local source = silent and "SILENT" or "GuildRoster"
-        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, nil, time())
+        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, cachedFaction, time())
         if not isOffline then
-            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, UnitFactionGroup("player"), time(), false)
+            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, cachedFaction, time(), false)
         end
         return
     end
@@ -1020,17 +1065,15 @@ function Whorkaround:Query(name, silent)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
     local playerFaction = UnitFactionGroup("player")
     local isEnemy = cached and cached.faction and (cached.faction ~= playerFaction and cached.faction ~= "Unknown")
+    local hasFaction = cached and cached.faction and cached.faction ~= "Unknown"
 
     -- Normal fresh cache check (Enemies < 10s, Same-faction < 5s)
     local threshold = isEnemy and 10 or 5
-    if cached and type(cached.level) == "number" and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
+    if hasFaction and cached and type(cached.level) == "number" and cached.level > 0 and (time() - (cached.lastSeen or 0) < threshold) then
         Whorkaround:Log("Fresh cache hit for " .. displayName .. ". Skipping Friends List.", "LOCAL")
         if not silent then
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
                 cached.faction, cached.lastSeen)
-        end
-        -- Only broadcast cache hits if it was a manual query (not silent)
-        if not silent then
             Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
                 false)
         end

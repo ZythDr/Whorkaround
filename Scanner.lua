@@ -333,6 +333,12 @@ guildScanFrame:SetScript("OnUpdate", function(self)
                     if zone and zone ~= "" and zone ~= entry.zone     then entry.zone = zone end
                     entry.lastSeen = time()
                     entry.source   = "Guild"
+                    
+                    if not entry.faction or entry.faction == "Unknown" then
+                        if Whorkaround.QueueFactionDiscovery then
+                            Whorkaround:QueueFactionDiscovery(name)
+                        end
+                    end
                 end
                 entry.name = name  -- preserve display-case name
             end
