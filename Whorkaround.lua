@@ -149,11 +149,12 @@ local leavePattern = EscapePattern(ERR_CHANNEL_LEAVE_S or "You have left the cha
 -- Helper to get player info from guild roster
 local function GetPlayerInfoFromGuild(targetName)
     if not IsInGuild() then return end
+    local guildName = GetGuildInfo("player")
     for i = 1, GetNumGuildMembers() do
         local name, rank, rankIndex, level, class, zone, note, officernote, online, status, classFileName =
             GetGuildRosterInfo(i)
         if name and name:match("^([^%-]+)") == targetName then
-            if level and level > 0 and class then return level, class, (online and zone or "Offline") end
+            if level and level > 0 and class then return level, class, (online and zone or "Offline"), guildName end
         end
     end
 end
@@ -296,8 +297,8 @@ local function GetRelativeTime(timestamp)
 end
 
 -- Function to print the "Who" result
-function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, faction, timestamp)
-    if not name then return end
+function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, faction, timestamp, guild)
+    if not name or name == "" then return end
 
     -- Normalize the level sentinel: treat "?" or any non-positive-number as nil so that
     -- all downstream comparisons (> 0, <= 60, %d format) are safe.
@@ -448,7 +449,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
     local isLocal = (source == "FriendsList" or source == "Manual" or source == "Sighting" or source == "PROXY")
     if isLocal and canBroadcast and level and level > 0 and level <= 60 and Whorkaround.Broadcast then
         Whorkaround:Log("Broadcasting local data for " .. name, "NETWORK")
-        Whorkaround:Broadcast(name, level, class, area, faction, timestamp, false, "NORMAL")
+        local cachedData = Whorkaround_DB and Whorkaround_DB[cleanName]
+        local g = guild or (cachedData and cachedData.guild)
+        Whorkaround:Broadcast(name, level, class, area, faction, timestamp, false, "NORMAL", g)
     end
 
     -- Compatibility: Set flag to fire a fake Who event to stop other addons (like ElvUI) from retrying
@@ -688,16 +691,14 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             if diff > 1.0 and qSource ~= "TIMEOUT" and qSource ~= "PROXY" then
                 local finalSource = (type(qSource) == "string") and qSource or "Manual"
                 
-                local cached = Whorkaround_DB and Whorkaround_DB[name]
-                if cached and type(cached.level) == "number" and cached.level > 0 and (now - (cached.lastSeen or 0) < 60) then
+                local displayName = name:gsub("^%l", string.upper)
+                local gLevel, gClass, gZone, gGuild = GetPlayerInfoFromGuild(displayName)
+                if gLevel and gLevel > 0 and gZone ~= "Offline" then
                     local oppositeFaction = (UnitFactionGroup("player") == "Alliance") and "Horde" or "Alliance"
-                    -- Update DB with the newly discovered faction
-                    cached.faction = oppositeFaction
-                    Whorkaround:PrintWhoResult(name, cached.level, cached.class, cached.zone, true, finalSource, oppositeFaction, cached.lastSeen)
-                    -- Manual query needs a broadcast since PrintWhoResult only broadcasts fresh local lookups if told
-                    if finalSource ~= "SILENT" and finalSource ~= "GuildRoster" then
-                        Whorkaround:Broadcast(name, cached.level, cached.class, cached.zone, oppositeFaction, cached.lastSeen, false)
-                    end
+                    local cached = Whorkaround_DB and Whorkaround_DB[name]
+                    if cached then cached.faction = oppositeFaction end
+                    Whorkaround:PrintWhoResult(name, gLevel, gClass, gZone, true, finalSource, oppositeFaction, time(), gGuild)
+                    -- PrintWhoResult handles the broadcast if finalSource is Manual, no need to duplicate
                 else
                     Whorkaround:PrintWhoResult(name, nil, nil, nil, false, finalSource)
                 end
@@ -962,7 +963,7 @@ function Whorkaround:ProxyQuery(name)
     end
 
     -- NEW: Check Guild/Cache for INSTANT proxy response
-    local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
+    local gLevel, gClass, gZone, gGuild = GetPlayerInfoFromGuild(displayName)
     local cached = Whorkaround_DB and Whorkaround_DB[name]
     local cachedFaction = cached and cached.faction and cached.faction ~= "Unknown" and cached.faction or nil
 
@@ -973,11 +974,12 @@ function Whorkaround:ProxyQuery(name)
         local zone = gZone or cached.zone
         local faction = cachedFaction
         local timestamp = (gLevel and gLevel > 0) and time() or cached.lastSeen
+        local guild = gGuild or (cached and cached.guild)
 
         -- DE-DUPLICATION: Cancel any pending cached response schedule
         if Whorkaround.CancelScheduledResponse then Whorkaround:CancelScheduledResponse(name) end
 
-        Whorkaround:Broadcast(displayName, level, class, zone, faction, timestamp, true)
+        Whorkaround:Broadcast(displayName, level, class, zone, faction, timestamp, true, nil, guild)
         return
     end
 
@@ -1016,10 +1018,10 @@ function Whorkaround:Query(name, silent)
         local level = UnitLevel("player")
         local _, class = UnitClass("player")
         local faction = UnitFactionGroup("player")
+        local guildName = GetGuildInfo("player")
         Whorkaround:Log("Self-lookup hit for " .. displayName .. "!", "LOCAL")
         local source = silent and "SILENT" or "Manual"
-        Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, source, faction)
-        Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
+        Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), false, source, faction, time(), guildName)
         return
     end
 
@@ -1031,9 +1033,9 @@ function Whorkaround:Query(name, silent)
             local level = UnitLevel(unit)
             local _, class = UnitClass(unit)
             local faction = UnitFactionGroup(unit)
+            local guildName = GetGuildInfo(unit)
             local source = silent and "SILENT" or "Manual"
-            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, source, faction, time())
-            Whorkaround:Broadcast(displayName, level, class, GetRealZoneText(), faction, time(), false)
+            Whorkaround:PrintWhoResult(displayName, level, class, GetRealZoneText(), true, source, faction, time(), guildName)
             return
         end
     end
@@ -1047,16 +1049,17 @@ function Whorkaround:Query(name, silent)
     Whorkaround.queryThrottle[name] = now
 
     -- NEW: Check Guild Roster FIRST (Live info)
-    local gLevel, gClass, gZone = GetPlayerInfoFromGuild(displayName)
+    local gLevel, gClass, gZone, gGuild = GetPlayerInfoFromGuild(displayName)
     local cachedFaction = (Whorkaround_DB and Whorkaround_DB[name] and Whorkaround_DB[name].faction)
     
     if gLevel and gLevel > 0 and cachedFaction and cachedFaction ~= "Unknown" then
         Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
         local isOffline = (gZone == "Offline")
         local source = silent and "SILENT" or "GuildRoster"
-        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, cachedFaction, time())
-        if not isOffline then
-            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, cachedFaction, time(), false)
+        -- PrintWhoResult won't broadcast "GuildRoster" source, so we broadcast explicitly
+        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, cachedFaction, time(), gGuild)
+        if not isOffline and not silent then
+            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, cachedFaction, time(), false, nil, gGuild)
         end
         return
     end
@@ -1075,7 +1078,7 @@ function Whorkaround:Query(name, silent)
             Whorkaround:PrintWhoResult(displayName, cached.level, cached.class, cached.zone, true, "Cache",
                 cached.faction, cached.lastSeen)
             Whorkaround:Broadcast(displayName, cached.level, cached.class, cached.zone, cached.faction, cached.lastSeen,
-                false)
+                false, nil, cached.guild)
         end
         return
     end
