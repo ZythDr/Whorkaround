@@ -120,7 +120,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
                         if Whorkaround.DebugMode or (Whorkaround_Settings and Whorkaround_Settings.debug) then
                             Whorkaround:Log("Broadcasting cached data for " .. name .. " (Timeout phase)", "NETWORK")
                         end
-                        Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK")
+                        Whorkaround:Broadcast(name, data.level, data.class, data.zone, data.faction, data.lastSeen, false, "BULK", data.guild)
                     end
                 end
                 table.insert(expiredResponses, name)
@@ -174,8 +174,9 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local _, class = UnitClass("player")
                     local race = UnitRace("player")
                     local faction = (UnitFactionGroup("player") == "Alliance") and "Alliance" or "Horde"
+                    local guildName = GetGuildInfo("player")
                     Whorkaround:Log("Received network request for SELF. Broadcasting my info.", "NETWORK")
-                    Whorkaround:Broadcast(targetName, UnitLevel("player"), class, GetRealZoneText(), faction, time(), true)
+                    Whorkaround:Broadcast(targetName, UnitLevel("player"), class, GetRealZoneText(), faction, time(), true, nil, guildName)
                     return
                 end
 
@@ -192,7 +193,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
                         onList = true
                         if connected then
                             Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
-                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true, "NORMAL")
+                            local cachedGuild = data and data.guild
+                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true, "NORMAL", cachedGuild)
                             return -- Online friend handled instantly
                         end
                         break
@@ -293,10 +295,19 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 local f = tempFields[6]
                 local timestamp = tonumber(tempFields[7])
                 local isProxy = tempFields[8]
+                local guild = tempFields[9] -- New field (optional for backwards compatibility)
 
                 -- DATA QUALITY: Ignore responses with placeholder/unknown data
                 if not name or not class or class:upper() == "UNKNOWN" or not zone or zone:upper() == "UNKNOWN" or (level or 0) == 0 or (f ~= "A" and f ~= "H") then
                     return
+                end
+                
+                -- Save guild to database if present
+                if guild and guild ~= "" then
+                    local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+                    Whorkaround_DB = Whorkaround_DB or {}
+                    Whorkaround_DB[cleanName] = Whorkaround_DB[cleanName] or {}
+                    Whorkaround_DB[cleanName].guild = guild
                 end
 
                 -- PROXY TRACKING: If they send a proxy response, they are a proxy peer
@@ -402,7 +413,7 @@ function Whorkaround:CancelScheduledResponse(name)
     end
 end
 
-function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy, priorityOverride)
+function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isProxy, priorityOverride, guild)
     local id = GetChannelName(CH_NAME)
     if id and id > 0 then
         local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
@@ -429,8 +440,8 @@ function Whorkaround:Broadcast(name, level, class, zone, faction, timestamp, isP
         local f = (faction == "Alliance") and "A" or (faction == "Horde" and "H" or "U")
         if f == "U" then return end -- DATA QUALITY: Never broadcast unknown faction
         local p = isProxy and "P" or "C"
-        -- Include version, timestamp, and proxy flag in the broadcast
-        local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s", MSG_PREFIX, currentVersion, name, level, dClass:upper(), zone, f, timestamp, p)
+        -- Include version, timestamp, proxy flag, and optionally guild in the broadcast
+        local msg = string.format("%s%s:%s:%d:%s:%s:%s:%d:%s:%s", MSG_PREFIX, currentVersion, name, level, dClass:upper(), zone, f, timestamp, p, guild or "")
         
         Whorkaround:Log("Broadcasting: " .. msg, "NETWORK")
         if _G.ChatThrottleLib then
