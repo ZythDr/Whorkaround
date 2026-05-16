@@ -566,7 +566,8 @@ function Whorkaround:CleanGhostFriends()
         if name then
             local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
             local hasNote = note and note:find("^Whorkaround:")
-            local isTemp = Whorkaround_DB and Whorkaround_DB.tempFriends and Whorkaround_DB.tempFriends[cleanName]
+            Whorkaround_Settings = Whorkaround_Settings or {}
+            local isTemp = Whorkaround_Settings.tempFriends and Whorkaround_Settings.tempFriends[cleanName]
 
             if hasNote or isTemp then
                 Whorkaround:Log("Cleaning ghost friend: " .. name, "CLEANUP")
@@ -813,7 +814,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if Whorkaround_Settings.mentionHyperlinks == nil then Whorkaround_Settings.mentionHyperlinks = false end
 
             Whorkaround_DB = Whorkaround_DB or {}
-            Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
+            Whorkaround_Settings = Whorkaround_Settings or {}
+            Whorkaround_Settings.tempFriends = Whorkaround_Settings.tempFriends or {}
+            if Whorkaround_DB.tempFriends then Whorkaround_DB.tempFriends = nil end
+            if Whorkaround_DB.tempfriends then Whorkaround_DB.tempfriends = nil end
 
             -- DB MIGRATION: Convert all keys to lowercase and PURGE invalid classes
             -- Only run once (guarded by version flag)
@@ -922,8 +926,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
         for sName, state in pairs(Whorkaround.friendState) do
             if state == "REMOVE" and not currentFriends[sName] then
                 -- Server confirmed removal. Safe to wipe tempFriends.
-                if Whorkaround_DB and Whorkaround_DB.tempFriends then
-                    Whorkaround_DB.tempFriends[sName] = nil
+                if Whorkaround_Settings and Whorkaround_Settings.tempFriends then
+                    Whorkaround_Settings.tempFriends[sName] = nil
                 end
                 Whorkaround.friendState[sName] = nil
                 Whorkaround:Log("Handshake complete: " .. sName .. " confirmed removed from friends list.", "CLEANUP")
@@ -996,8 +1000,9 @@ function Whorkaround:ProxyQuery(name)
     end
 
     if not alreadyFriend then
-        Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
-        Whorkaround_DB.tempFriends[name] = true
+        Whorkaround_Settings = Whorkaround_Settings or {}
+        Whorkaround_Settings.tempFriends = Whorkaround_Settings.tempFriends or {}
+        Whorkaround_Settings.tempFriends[name] = true
         AddFriend(displayName)
     else
         Whorkaround:Log("ProxyQuery: " .. displayName .. " is already on friends list. Skipping AddFriend.", "PROXY")
@@ -1101,8 +1106,9 @@ function Whorkaround:Query(name, silent)
     Whorkaround:Log("Starting Friends-List lookup for " .. displayName, "LOCAL")
     Whorkaround.lastActionTime = GetTime()
     Whorkaround.pendingQueries[name] = silent and "SILENT" or GetTime(); Whorkaround.addedSuppression[name] = GetTime(); Whorkaround.friendState[name] = "ADD"
-    Whorkaround_DB.tempFriends = Whorkaround_DB.tempFriends or {}
-    Whorkaround_DB.tempFriends[name] = true
+    Whorkaround_Settings = Whorkaround_Settings or {}
+    Whorkaround_Settings.tempFriends = Whorkaround_Settings.tempFriends or {}
+    Whorkaround_Settings.tempFriends[name] = true
     AddFriend(displayName)
 end
 
