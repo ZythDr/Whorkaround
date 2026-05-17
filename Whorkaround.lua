@@ -719,6 +719,10 @@ frame:SetScript("OnUpdate", function(self, elapsed)
             Whorkaround.pendingQueries[name] = nil
             Whorkaround.addedSuppression[name] = nil
             Whorkaround.removingFriends[name] = nil
+            Whorkaround.friendState[name] = nil
+            if Whorkaround_Settings and Whorkaround_Settings.tempFriends then
+                Whorkaround_Settings.tempFriends[name] = nil
+            end
         end
 
         -- NETWORK SCAN TIMEOUT (safe: collect first, then remove)

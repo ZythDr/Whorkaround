@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.10] - 2026-05-17
+
+### Fixed
+
+- **Friend Deletion Bug:** Fixed a bug where looking up a player who didn't exist (or was the opposite faction) would leave an invisible "temporary" flag stuck on their name. If you later manually added that same person to your friends list, Whorkaround would mistakenly assume they were a leftover from the lookup and delete them. The addon now properly wipes these temporary flags when a lookup times out!
+
 ## [1.5.9] - 2026-05-17
 
 ### New
