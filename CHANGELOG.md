@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.11] - 2026-05-17
+
+### Fixed
+
+- **Cross-Faction Proxy Data Corruption:** Fixed a critical bug where proxies would respond to requests for cross-faction players (if they happened to be on the proxy's friends list) and mistakenly broadcast their own faction instead of the target's. Cross-faction friends on the list are now properly handled, ignoring level-0 dummy data and preventing faction-flipping in broadcasts.
+
 ## [1.5.10] - 2026-05-17
 
 ### Fixed

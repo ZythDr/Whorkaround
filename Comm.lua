@@ -191,10 +191,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     local fName, level, class, area, connected = GetFriendInfo(i)
                     if fName and fName:lower() == cleanName then
                         onList = true
-                        if connected then
+                        if connected and level and level > 0 then
                             Whorkaround:Log("Immediate friends-list hit for " .. targetName .. "! Broadcasting :P", "PROXY")
                             local cachedGuild = data and data.guild
-                            Whorkaround:Broadcast(fName, level, class, area, UnitFactionGroup("player"), time(), true, "NORMAL", cachedGuild)
+                            local fFaction = (data and data.faction and data.faction ~= "Unknown") and data.faction or UnitFactionGroup("player")
+                            Whorkaround:Broadcast(fName, level, class, area, fFaction, time(), true, "NORMAL", cachedGuild)
                             return -- Online friend handled instantly
                         end
                         break
