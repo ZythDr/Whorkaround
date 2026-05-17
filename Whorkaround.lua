@@ -867,6 +867,17 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if fName then
                 local fClean = fName:lower():gsub("^%s*(.-)%s*$", "%1")
                 currentFriends[fClean] = { index=i, name=fName, level=fLevel, class=fClass, area=fArea, connected=fConnected, note=fNote }
+                
+                -- SERVER NOTE PERSISTENCE FIX:
+                -- If a user manually adds a friend that Whorkaround previously queried and deleted, 
+                -- the server may have remembered the "Whorkaround:Tag" note!
+                -- If they are NOT an active query, we MUST strip this note so CleanGhostFriends doesn't kill them!
+                if fNote and fNote:find("^Whorkaround:") then
+                    if not Whorkaround.pendingQueries[fClean] and Whorkaround.friendState[fClean] ~= "REMOVE" then
+                        Whorkaround:Log("Stripping leftover persistent note from manual friend: " .. fName, "CLEANUP")
+                        SetFriendNotes(i, "")
+                    end
+                end
             end
         end
 
@@ -1149,6 +1160,20 @@ SlashCmdList["WHORKWHO"] = function(msg)
     else
         SendWho(msg)
     end
+end
+
+-- FALLBACK FIX: Hook AddFriend to immediately unflag a player if the user manually adds them!
+local original_AddFriend = AddFriend
+function AddFriend(name, note)
+    if name then
+        local cleanName = name:lower():gsub("^%s*(.-)%s*$", "%1")
+        if not Whorkaround.pendingQueries[cleanName] then
+            if Whorkaround_Settings and Whorkaround_Settings.tempFriends then
+                Whorkaround_Settings.tempFriends[cleanName] = nil
+            end
+        end
+    end
+    original_AddFriend(name, note)
 end
 
 -- UTILITY COMMANDS
