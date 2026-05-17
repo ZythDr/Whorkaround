@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Persistent Server Note Ghosting:** Fixed a bizarre issue where the WoW server would occasionally remember the invisible `Whorkaround:Tag` note for players the addon had previously queried and removed from your friends list. If you later manually added that player back, the server would reattach the old note, causing Whorkaround to assume it was a ghost and immediately delete them! The addon now detects this and automatically strips the leftover server note when you manually add someone.
 - **Manual Add Safety Hook:** Hooked the game's native `AddFriend` function. Now, if you manually add a player to your friends list, Whorkaround instantly and proactively clears any leftover internal flags (`tempFriends`) for that player, ensuring they are absolutely never swept up in background cleanups.
 - **Query Timeout Ghost Bug:** Fixed a bug where a severely lagging server or a lookup for an invalid player would trigger a 5-second network timeout and "give up" but fail to wipe the invisible temporary flag. The addon now properly cleans up its internal flags when a lookup expires.
 
