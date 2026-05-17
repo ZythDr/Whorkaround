@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.9] - 2026-05-17
+
+### New
+
+- **Background Faction Discovery:** Added a super-lightweight background discovery queue. On login, active online guild members with "Unknown" faction are slowly processed one-by-one (spaced 2 seconds apart) through silent lookups, populating their faction seamlessly without any chat noise.
+- **Opposite Faction Inference:** If a manual lookup on a guild member fails the `AddFriend` handshake but the Guild Roster confirms they are currently online, the addon now intelligently infers they are the opposite faction, saving and broadcasting accurate data without requiring a network query.
+- **Guild Info in Broadcasts:** Appended the player's Guild Name as an optional 9th segment in network broadcasts. Designed to be 100% backwards-compatible: older addon versions will safely ignore it, while newer clients will automatically capture and save the guild name to their DB!
+
+### Fixed
+
+- **Cross-Faction Guild Hardening:** Fixed a bug where guild scans would prematurely short-circuit lookups and blindly broadcast the player's own faction for cross-faction guild members. Guild scans now safely leave the faction as "Unknown" until verified.
+- **"Tempfriends" DB Bug:** Fixed an issue where the `tempFriends` handshake tracker was saved directly in `Whorkaround_DB`, accidentally creating a ghost player named "Tempfriends" in the UI. It's now cleanly stored inside `Whorkaround_Settings`, and old DB leftovers are automatically cleaned up on login.
+
 ## [1.5.8] - 2026-05-13
 
 ### Changed
