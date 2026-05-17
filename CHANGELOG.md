@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Manual Add Safety Hook:** Hooked the game's native `AddFriend` function. Now, if you manually add a player to your friends list, Whorkaround instantly and proactively clears any leftover internal flags (`tempFriends`) for that player, ensuring they are absolutely never swept up in background cleanups.
-- **Query Timeout Ghost Bug:** Fixed a bug where a severely lagging server or a lookup for an invalid player would trigger a 5-second network timeout and "give up" but fail to wipe the invisible temporary flag. The addon now properly cleans up its internal flags when a lookup expires.
+- **Query Timeout Ghost Bug:** Fixed a bug where minor server lag (taking longer than 1 second) would cause a perfectly valid `/who` lookup for a same-faction player to "time out" and prematurely abort. When it aborted, it successfully removed the player but forgot to wipe the invisible temporary flag. The addon now properly cleans up its internal flags when an aborted lookup fully expires!
 
 ## [1.5.9] - 2026-05-17
 
