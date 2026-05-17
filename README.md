@@ -16,7 +16,9 @@ For players not yet in your database, Whorkaround can reach out to the network: 
 ## Features
 
 **Database Browser**
-Accessible from the Social panel (the same window as the Friends list). Searchable and sortable — filter by name, class, or zone. Click any entry to query for a live update.
+Accessible from the `Who` tab at the bottom of the Friends List window.  
+Searchable and sortable — filter by name, class, or zone.  
+All data in the DB is "last seen" info, select a player in the list and click `Refresh` to fetch live data and update the DB entry.
 
 **Ambient Scanner**
 Passively collects player data from the combat log, mouseover events, and tooltips with no noticeable performance cost. Runs in the background automatically.
