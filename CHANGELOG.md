@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.11] - 2026-05-17
+
+### Fixed
+
+- **Background Faction Scanner Loops:** Fixed an issue where the background scanner would become stuck in a loop repeatedly checking the faction of offline or unresolvable guild members, causing proxies to inadvertently spam the user's chat with "No player named '...' is currently playing" messages. The scanner now imposes a 5-minute cooldown on unsuccessful queries, and the specific system message spam has been permanently suppressed from chat.
+
 ## [1.5.10] - 2026-05-17
 
 ### Fixed

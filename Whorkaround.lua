@@ -83,12 +83,16 @@ discoveryFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
+Whorkaround.factionChecked = Whorkaround.factionChecked or {}
 function Whorkaround:QueueFactionDiscovery(name)
     if not name then return end
     local lName = name:lower()
+    -- Prevent endless hammering if the network/server is unable to resolve the faction (e.g. they logged off but roster is stale)
+    if Whorkaround.factionChecked[lName] and (GetTime() - Whorkaround.factionChecked[lName] < 300) then return end
     for _, v in ipairs(Whorkaround.discoveryQueue) do
         if v == lName then return end
     end
+    Whorkaround.factionChecked[lName] = GetTime()
     table.insert(Whorkaround.discoveryQueue, lName)
 end
 
@@ -143,6 +147,7 @@ end
 -- Patterns for system message suppression (with fallbacks)
 local addedPattern = EscapePattern(ERR_FRIEND_ADDED_S or "%s added to friends."):gsub("%%%%s", "(.+)")
 local removedPattern = EscapePattern(ERR_FRIEND_REMOVED_S or "%s removed from friends list."):gsub("%%%%s", "(.+)")
+local notPlayingPattern = EscapePattern(ERR_CHAT_PLAYER_NOT_FOUND_S or "No player named '%s' is currently playing."):gsub("%%%%s", "(.+)")
 local joinPattern = EscapePattern(ERR_CHANNEL_JOIN_S or "You have joined the channel: %s"):gsub("%%%%s", "(.+)")
 local leavePattern = EscapePattern(ERR_CHANNEL_LEAVE_S or "You have left the channel: %s"):gsub("%%%%s", "(.+)")
 
@@ -633,6 +638,25 @@ end
 -- System Message Filter
 local function SystemMessageFilter(self, event, msg)
     if not msg then return end
+    
+    local nameNotPlaying = msg:match(notPlayingPattern)
+    if nameNotPlaying then
+        local cleanName = nameNotPlaying:lower():gsub("^%s*(.-)%s*$", "%1")
+        if (Whorkaround.pendingQueries[cleanName] or Whorkaround.addedSuppression[cleanName]) then
+            local qSource = Whorkaround.pendingQueries[cleanName]
+            if qSource and qSource ~= "PROXY" and qSource ~= "SILENT" then 
+                local finalSource = (type(qSource) == "string") and qSource or "Manual"
+                Whorkaround:PrintWhoResult(cleanName, nil, nil, nil, false, finalSource) 
+            end
+            Whorkaround.pendingQueries[cleanName] = nil
+            Whorkaround.friendState[cleanName] = nil
+            if Whorkaround_Settings and Whorkaround_Settings.tempFriends then
+                Whorkaround_Settings.tempFriends[cleanName] = nil
+            end
+            return true
+        end
+    end
+
     local nameAdded = msg:match(addedPattern)
     if nameAdded then
         local cleanName = nameAdded:lower():gsub("^%s*(.-)%s*$", "%1")
