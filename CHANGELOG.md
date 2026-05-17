@@ -2,16 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.11] - 2026-05-17
-
-### Fixed
-
-- **Cross-Faction Proxy Data Corruption:** Fixed a critical bug where proxies would respond to requests for cross-faction players (if they happened to be on the proxy's friends list) and mistakenly broadcast their own faction instead of the target's. Cross-faction friends on the list are now properly handled, ignoring level-0 dummy data and preventing faction-flipping in broadcasts.
-
 ## [1.5.10] - 2026-05-17
 
 ### Fixed
 
+- **Cross-Faction Proxy Data Corruption:** Fixed a critical bug where proxies would respond to requests for cross-faction players (if they happened to be on the proxy's friends list) and mistakenly broadcast their own faction instead of the target's. Cross-faction friends on the list are now properly handled, ignoring level-0 dummy data and preventing faction-flipping in broadcasts.
 - **Manual Add Safety Hook:** Hooked the game's native `AddFriend` function. Now, if you manually add a player to your friends list, Whorkaround instantly and proactively clears any leftover internal flags (`tempFriends`) for that player, ensuring they are absolutely never swept up in background cleanups.
 - **Query Timeout Ghost Bug:** Fixed a bug where minor server lag (taking longer than 1 second) would cause a perfectly valid `/who` lookup for a same-faction player to "time out" and prematurely abort. When it aborted, it successfully removed the player but forgot to wipe the invisible temporary flag. The addon now properly cleans up its internal flags when an aborted lookup fully expires!
 
