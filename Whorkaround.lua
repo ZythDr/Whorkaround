@@ -75,8 +75,9 @@ discoveryFrame:SetScript("OnUpdate", function(self, elapsed)
         if #Whorkaround.discoveryQueue > 0 then
             local name = table.remove(Whorkaround.discoveryQueue, 1)
             local cached = Whorkaround_DB and Whorkaround_DB[name]
-            -- Only query if we still don't know the faction
-            if cached and (not cached.faction or cached.faction == "Unknown") then
+            -- Query if we still don't know their faction OR their level is unknown/unresolved
+            local needsDiscovery = not cached.faction or cached.faction == "Unknown" or not cached.level or cached.level == "?" or cached.level == 0
+            if cached and needsDiscovery then
                 Whorkaround:Query(name, true)
             end
         end
@@ -484,13 +485,30 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
         local currentBest = Whorkaround.bestNetworkHits[cleanName]
         local newIsLive = (isProxy == "P" or isProxy == true)
 
+        -- Establish baseline: use existing currentBest, or fall back to our local cache as baseline
+        local baseline = currentBest
+        if not baseline then
+            local localCached = Whorkaround_DB and Whorkaround_DB[cleanName]
+            if localCached and localCached.level and localCached.level > 0 then
+                baseline = {
+                    level = localCached.level,
+                    class = localCached.class,
+                    zone = localCached.zone,
+                    faction = localCached.faction,
+                    timestamp = localCached.lastSeen or 0,
+                    isLive = false,
+                    isLocal = true -- Flag indicating this is our own local DB entry
+                }
+            end
+        end
+
         -- Priority: Live results > Cached results, then Newest > Oldest
         local isBetter = false
-        if not currentBest then
+        if not baseline then
             isBetter = true
-        elseif newIsLive and not currentBest.isLive then
+        elseif newIsLive and not baseline.isLive then
             isBetter = true
-        elseif (newIsLive == currentBest.isLive) and (timestamp > currentBest.timestamp) then
+        elseif (newIsLive == baseline.isLive) and (timestamp > baseline.timestamp) then
             isBetter = true
         end
 
@@ -505,8 +523,8 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
             }
         end
 
-        -- IMMEDIATE LIVE PRINT: If we got a live hit, don't wait for the timeout
-        if newIsLive then
+        -- IMMEDIATE LIVE PRINT: If we got a live hit that is better than our local baseline, print immediately
+        if newIsLive and isBetter then
             Whorkaround:Log("Live result received for " .. name .. "! Printing immediately.", "NETWORK")
             Whorkaround.networkWaiters[cleanName] = nil
             Whorkaround:PrintWhoResult(name, level, class, zone, true, isSilent and "SILENT" or "WhorkComm", faction, timestamp)

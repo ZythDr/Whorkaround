@@ -206,6 +206,12 @@ scannerFrame:SetScript("OnEvent", function(self, event, ...)
             -- We CANNOT assume isHostile means enemy-faction due to duels and FFA PvP zones.
             -- We will simply wait for their race data to load, or for a mouseover/target interaction.
 
+            -- Queue for passive level/guild/faction discovery if we still need info
+            local needsDiscovery = not entry.faction or entry.faction == "Unknown" or not entry.level or entry.level == "?" or entry.level == 0
+            if needsDiscovery and Whorkaround.QueueFactionDiscovery then
+                Whorkaround:QueueFactionDiscovery(name)
+            end
+
             -- Debug logging (Verbose only for saves)
             if Whorkaround_Settings.debug and debugLevel >= 2 then
                 Whorkaround:Log("Scanner: Saved " .. name .. " (Lvl: " .. (entry.level or "??") .. ") in " .. entry.zone, "LOCAL")
