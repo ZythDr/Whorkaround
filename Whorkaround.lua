@@ -489,13 +489,14 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
         local baseline = currentBest
         if not baseline then
             local localCached = Whorkaround_DB and Whorkaround_DB[cleanName]
-            if localCached and localCached.level and localCached.level > 0 then
+            local localLevel = localCached and tonumber(localCached.level)
+            if localCached and localLevel and localLevel > 0 then
                 baseline = {
-                    level = localCached.level,
+                    level = localLevel,
                     class = localCached.class,
                     zone = localCached.zone,
                     faction = localCached.faction,
-                    timestamp = localCached.lastSeen or 0,
+                    timestamp = tonumber(localCached.lastSeen) or 0,
                     isLive = false,
                     isLocal = true -- Flag indicating this is our own local DB entry
                 }
@@ -508,8 +509,12 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
             isBetter = true
         elseif newIsLive and not baseline.isLive then
             isBetter = true
-        elseif (newIsLive == baseline.isLive) and (timestamp > baseline.timestamp) then
-            isBetter = true
+        else
+            local ts = tonumber(timestamp) or 0
+            local baseTs = tonumber(baseline.timestamp) or 0
+            if (newIsLive == baseline.isLive) and (ts > baseTs) then
+                isBetter = true
+            end
         end
 
         if isBetter then
