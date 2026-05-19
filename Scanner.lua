@@ -334,7 +334,16 @@ guildScanFrame:SetScript("OnUpdate", function(self)
                     entry.lastSeen = time()
                     entry.source   = "Guild"
                     
-                    if not entry.faction or entry.faction == "Unknown" then
+                    -- Queue for faction discovery if:
+                    -- 1. Faction is not yet known, OR
+                    -- 2. Cached faction matches OUR faction — this could be stale/corrupt
+                    --    (cross-faction guild members exist on Epoch; the guild API never
+                    --     provides faction, so same-faction entries need periodic re-verification).
+                    -- The factionChecked 5-min cooldown in QueueFactionDiscovery prevents spam.
+                    local playerFaction = UnitFactionGroup("player")
+                    local factionSuspect = (not entry.faction or entry.faction == "Unknown")
+                        or (entry.faction == playerFaction)
+                    if factionSuspect then
                         if Whorkaround.QueueFactionDiscovery then
                             Whorkaround:QueueFactionDiscovery(name)
                         end

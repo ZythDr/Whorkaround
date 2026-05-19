@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.12] - 2026-05-19
+
+### New
+
+- **Guild Name in Results:** `/who` results now display the target's guild in warning reddish-orange `<Guildname>` text inserted after their class (before their zone), if one is cached in the local DB. Guild info is populated by passive guild roster scans and network broadcasts. Because it is always cached (never live), a reddish-orange warning — `Guild info is always cached and may be outdated` — is shown alongside any result that includes guild info. For network results (`WhorkComm`/timeout) the disclaimer is appended to the existing `Data (Live/Cached) was successfully fetched...` line. For local results it appears as a separate line below. Players with no cached guild show no guild text and no disclaimer.
+
+### Fixed
+
+- **Cross-Faction Guild Member Faction Corruption:** Removed the "Guild Roster fast-path" from `/who` lookups entirely. Previously, if a guild member was found in the local roster cache, the addon would skip the AddFriend handshake and directly use the cached faction — even if that value was wrong. Since the guild roster API never returns faction data, any stale or corrupt faction entry would be permanently recycled and re-broadcast to others. Guild roster data is now **passive only** (level/class/zone are still updated by the background scanner), while all `/who` lookups — including for guild members — go through the full AddFriend handshake to properly determine faction.
+- **Background Scanner Blind Spot:** The passive background guild scanner only previously re-queued players with `Unknown` faction for re-verification. Since the guild API never returns faction, any guild member with a cached same-faction value that was wrong would never be re-checked. The scanner now also re-queues online guild members whose cached faction matches the local player's faction, allowing corrupt same-faction entries to be auto-corrected on the next guild scan. The existing 5-minute cooldown per player prevents spam.
+
 ## [1.5.11] - 2026-05-17
 
 ### Fixed

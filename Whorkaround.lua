@@ -383,13 +383,19 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
         -- DATA QUALITY: Abort if essential data is still Unknown
         if displayClass == "Unknown" or displayArea == "Unknown" then return end
 
-        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s - %s%s", prefix, name, classColor,
-            displayName, displayLevel, displayFaction, displayClass, displayArea, timeText)
+        -- Guild: use passed-in guild first, fall back to DB cache
+        local displayGuild = guild or (cachedData and cachedData.guild)
+        local guildSuffix = displayGuild and string.format(" |cffff6a00<%s>|r", displayGuild) or ""
+        local guildWarning = displayGuild and string.format("%s|cffff6a00Guild info is always cached and may be outdated.|r", prefix) or nil
+
+        local line1 = string.format("%s|Hplayer:%s|h[|r%s%s|r]|h: Level %d %s %s%s - %s%s", prefix, name, classColor,
+            displayName, displayLevel, displayFaction, displayClass, guildSuffix, displayArea, timeText)
 
         if source == "WhorkComm" or source == "TIMEOUT" then
             local statusLabel = isLive and "|cff00ff00(Live)|r" or "|cffffd100(Cached)|r"
             local actionMsg = (source == "WhorkComm") and "fetched from network" or "recovered from cache (Network timeout)"
-            local line2 = string.format("%sData %s was successfully %s.", prefix, statusLabel, actionMsg)
+            local line2 = string.format("%sData %s was successfully %s.%s", prefix, statusLabel, actionMsg,
+                guildWarning and ("  " .. guildWarning:sub(#prefix + 1)) or "")
             if not isActualSilent then
                 for _, frame in ipairs(GetOutputFrames()) do
                     frame:AddMessage(line1, 1, 1, 0)
@@ -400,6 +406,9 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
             if not isActualSilent then
                 for _, frame in ipairs(GetOutputFrames()) do
                     frame:AddMessage(line1, 1, 1, 0)
+                    if guildWarning then
+                        frame:AddMessage(guildWarning, 1, 1, 0)
+                    end
                 end
             end
         end
@@ -1081,23 +1090,13 @@ function Whorkaround:Query(name, silent)
     end
     Whorkaround.queryThrottle[name] = now
 
-    -- NEW: Check Guild Roster FIRST (Live info)
-    local gLevel, gClass, gZone, gGuild = GetPlayerInfoFromGuild(displayName)
-    local cachedFaction = (Whorkaround_DB and Whorkaround_DB[name] and Whorkaround_DB[name].faction)
-    
-    if gLevel and gLevel > 0 and cachedFaction and cachedFaction ~= "Unknown" then
-        Whorkaround:Log("Guild hit for " .. displayName .. "! Skipping Friends List.", "LOCAL")
-        local isOffline = (gZone == "Offline")
-        local source = silent and "SILENT" or "GuildRoster"
-        -- PrintWhoResult won't broadcast "GuildRoster" source, so we broadcast explicitly
-        Whorkaround:PrintWhoResult(displayName, isOffline and 0 or gLevel, gClass, gZone, not isOffline, source, cachedFaction, time(), gGuild)
-        if not isOffline and not silent then
-            Whorkaround:Broadcast(displayName, gLevel, gClass, gZone, cachedFaction, time(), false, nil, gGuild)
-        end
-        return
-    end
+    -- Note: If this player is a guild member, the guild scanner passively keeps
+    -- their level/class/zone up to date in the DB. But faction MUST be verified
+    -- via the AddFriend handshake — the guild roster API never returns faction.
+    -- So we fall straight through to AddFriend for everyone, guild or not.
 
-    -- NEW: Check Cache (If fresh)
+    -- Check Cache (If fresh) — only use for confirmed opposite-faction players,
+    -- since same-faction entries could be stale for cross-faction guildmates.
     local cached = Whorkaround_DB and Whorkaround_DB[name]
     local playerFaction = UnitFactionGroup("player")
     local isEnemy = cached and cached.faction and (cached.faction ~= playerFaction and cached.faction ~= "Unknown")
