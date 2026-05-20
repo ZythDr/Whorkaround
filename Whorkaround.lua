@@ -961,7 +961,9 @@ frame:SetScript("OnEvent", function(self, event, ...)
                             local finalSource = (type(qType) == "number") and "FriendsList" or qType
                             Whorkaround:Log("Manual query success: " .. friend.name, "LOCAL")
                             Whorkaround:PrintWhoResult(friend.name, friend.level, friend.class, friend.area, true, finalSource, nil, time())
-                            Whorkaround:Broadcast(friend.name, friend.level, friend.class, friend.area, UnitFactionGroup("player"), time(), false)
+                            if qType ~= "SILENT" then
+                                Whorkaround:Broadcast(friend.name, friend.level, friend.class, friend.area, UnitFactionGroup("player"), time(), false)
+                            end
                         else
                             local finalSource = (type(qType) == "string") and qType or "Manual"
                             Whorkaround:Log("Manual query failed (offline/enemy): " .. friend.name, "LOCAL")
@@ -1140,7 +1142,7 @@ function Whorkaround:Query(name, silent)
         if fName and fName:lower() == name then
             local source = silent and "SILENT" or "FriendsList"
             Whorkaround:PrintWhoResult(fName, connected and level or 0, class, area, connected, source, nil, time())
-            if connected and level and level > 0 then
+            if not silent and connected and level and level > 0 then
                 local faction = (Whorkaround_DB and Whorkaround_DB[name] and Whorkaround_DB[name].faction and Whorkaround_DB[name].faction ~= "Unknown") and Whorkaround_DB[name].faction or UnitFactionGroup("player")
                 Whorkaround:Broadcast(fName, level, class, area, faction, time(), false)
             end
