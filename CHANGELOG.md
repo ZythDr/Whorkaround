@@ -6,14 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### New
 
-- **Combat Log Discovery Integration:** Nearby players scanned from the combat log are now automatically queued in the passive discovery system if their level or faction details are unresolved. This allows Whorkaround to seamlessly resolve levels, zones, and guilds of surrounding players in the background at zero performance cost.
+- **Combat Log Discovery:** Nearby players spotted in your combat log are now automatically added to a silent, background resolution queue if we don't have their details yet. This allows Whorkaround to passively learn levels, classes, zones, and guilds of surrounding players with zero impact on gameplay performance!
 
 ### Fixed
 
-- **Network Broadcast Override Cache:** Fixed an issue where manual lookups of opposing-faction players would unconditionally display older/stale remote network data even when the local database contained a much more recent sighting. Whorkaround now establishes a local cache baseline and only overrides it with network responses that are strictly newer.
-- **Network Broadcast Race Condition:** Resolved a race condition where incoming network packets would update the local database baseline right before the baseline comparison occurred, artificially matching the timestamp and causing the network hit to be discarded as "stale" (mistakenly printing a network timeout warning when successful data had actually been retrieved).
-- **Background Scan Broadcast Flood Prevention:** Restricted active network broadcasts to manual searches and network proxy responses. Automated background silent queries (such as those from guild scans, combat log discoveries, and hyperlink mentions) are now 100% silent and will never broadcast to the network.
-- **Epoch Low-Level Whisper Warning Suppression:** Suppressed the Project Epoch-specific system message `"This player cannot be whispered until they are level 9."` from spamming the user's chat frame when the addon adds low-level players to the temporary friends list during background/active lookups.
+- **Network Sighting Prioritization:** Fixed a bug where lookups for opposing-faction players would show stale network-broadcasted cache data instead of your own, much newer local database sighting. We now strictly prioritize whichever sighting has the newer timestamp.
+- **Network Timeout Mislabeling:** Fixed a subtle race condition where incoming network packets would update your database baseline a millisecond too early, tricking the comparison engine into discarding the packet as "stale" and showing a `(Network Timeout)` when data was actually retrieved successfully.
+- **Silent Background Query Throttling:** Automated background scans (like guild lists, combat log sightings, and chat link lookups) are now 100% silent and will never broadcast to the network. Broadcasts are now strictly limited to manual searches and responding to other users' proxy requests to prevent channel flooding.
+- **Epoch Level-9 Whisper Suppressor:** Suppressed the annoying `"This player cannot be whispered until they are level 9"` system message from printing to chat when Whorkaround checks low-level bank alts or characters behind the scenes on Project Epoch.
 
 ## [1.5.12] - 2026-05-19
 
