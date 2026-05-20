@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Network Broadcast Override Cache:** Fixed an issue where manual lookups of opposing-faction players would unconditionally display older/stale remote network data even when the local database contained a much more recent sighting. Whorkaround now establishes a local cache baseline and only overrides it with network responses that are strictly newer.
+- **Network Broadcast Race Condition:** Resolved a race condition where incoming network packets would update the local database baseline right before the baseline comparison occurred, artificially matching the timestamp and causing the network hit to be discarded as "stale" (mistakenly printing a network timeout warning when successful data had actually been retrieved).
+- **Background Scan Broadcast Flood Prevention:** Restricted active network broadcasts to manual searches and network proxy responses. Automated background silent queries (such as those from guild scans, combat log discoveries, and hyperlink mentions) are now 100% silent and will never broadcast to the network.
+- **Epoch Low-Level Whisper Warning Suppression:** Suppressed the Project Epoch-specific system message `"This player cannot be whispered until they are level 9."` from spamming the user's chat frame when the addon adds low-level players to the temporary friends list during background/active lookups.
 
 ## [1.5.12] - 2026-05-19
 
