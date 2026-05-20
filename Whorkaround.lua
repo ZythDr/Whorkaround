@@ -364,7 +364,19 @@ function Whorkaround:PrintWhoResult(name, level, class, area, isLive, source, fa
                             displayName, statusMsg), 1, 1, 0)
                     end
                 end
-                Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = isActualSilent }
+                local baseline = nil
+                if cachedData and type(cachedData.level) == "number" and cachedData.level > 0 then
+                    baseline = {
+                        level = cachedData.level,
+                        class = cachedData.class,
+                        zone = cachedData.zone,
+                        faction = cachedData.faction,
+                        timestamp = tonumber(cachedData.lastSeen) or 0,
+                        isLive = false,
+                        isLocal = true
+                    }
+                end
+                Whorkaround.networkWaiters[cleanName] = { startTime = GetTime(), silent = isActualSilent, baseline = baseline }
                 Whorkaround.bestNetworkHits[cleanName] = nil -- Clear previous search results
                 local targetFactionTag = (faction == "Horde") and "H" or (faction == "Alliance" and "A" or "U")
                 Whorkaround:Request(name, targetFactionTag)
@@ -485,23 +497,8 @@ function Whorkaround:ResolveNetworkWait(name, level, class, zone, faction, times
         local currentBest = Whorkaround.bestNetworkHits[cleanName]
         local newIsLive = (isProxy == "P" or isProxy == true)
 
-        -- Establish baseline: use existing currentBest, or fall back to our local cache as baseline
-        local baseline = currentBest
-        if not baseline then
-            local localCached = Whorkaround_DB and Whorkaround_DB[cleanName]
-            local localLevel = localCached and tonumber(localCached.level)
-            if localCached and localLevel and localLevel > 0 then
-                baseline = {
-                    level = localLevel,
-                    class = localCached.class,
-                    zone = localCached.zone,
-                    faction = localCached.faction,
-                    timestamp = tonumber(localCached.lastSeen) or 0,
-                    isLive = false,
-                    isLocal = true -- Flag indicating this is our own local DB entry
-                }
-            end
-        end
+        -- Establish baseline: use existing currentBest, or fall back to the captured baseline snapshot
+        local baseline = currentBest or (type(waiter) == "table" and waiter.baseline)
 
         -- Priority: Live results > Cached results, then Newest > Oldest
         local isBetter = false
