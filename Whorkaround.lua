@@ -667,7 +667,16 @@ end
 -- System Message Filter
 local function SystemMessageFilter(self, event, msg)
     if not msg then return end
-    
+
+    if msg:find("cannot be whispered until they are level") then
+        local now = GetTime()
+        for name, startTime in pairs(Whorkaround.addedSuppression) do
+            if now - startTime < 2.0 then
+                return true
+            end
+        end
+    end
+
     local nameNotPlaying = msg:match(notPlayingPattern)
     if nameNotPlaying then
         local cleanName = nameNotPlaying:lower():gsub("^%s*(.-)%s*$", "%1")
